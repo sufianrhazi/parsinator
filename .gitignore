@@ -1,3 +1,4 @@
 *.swp
 /ext/
 /node_modules/
+/build/
