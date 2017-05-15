@@ -4,20 +4,37 @@
     "version": "0.1.0",
     "tasks": [
         {
-            "taskName": "tsc",
-            "command": "tsc",
-            "args": ["-p", "."],
+            "taskName": "build",
+            "command": "s/build",
+            "args": [],
             "isShellCommand": true,
             "isBuildCommand": true,
             "showOutput": "silent",
             "problemMatcher": "$tsc"
         },
         {
-            "taskName": "bundle",
-            "command": "node_modules/.bin/browserify",
-            "args": ["build/tsc/main.js", "-o", "build/bundle.js"],
+            "taskName": "clean",
+            "command": "s/clean",
+            "args": [],
             "isShellCommand": true,
-            "isBuildCommand": true,
+            "isBuildCommand": false,
+            "showOutput": "always"
+        },
+        {
+            "taskName": "tsc",
+            "command": "s/tsc-build.sh",
+            "args": [],
+            "isShellCommand": true,
+            "isBuildCommand": false,
+            "showOutput": "silent",
+            "problemMatcher": "$tsc"
+        },
+        {
+            "taskName": "bundle",
+            "command": "s/browserify-bundle.sh",
+            "args": [],
+            "isShellCommand": true,
+            "isBuildCommand": false,
             "showOutput": "always"
         }
     ]

@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+set -e
+cd "$(dirname "$0")/.."
+s/tsc-build.sh
+s/browserify-bundle.sh
