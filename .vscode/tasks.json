@@ -36,6 +36,15 @@
             "isShellCommand": true,
             "isBuildCommand": false,
             "showOutput": "always"
+        },
+        {
+            "taskName": "test",
+            "command": "s/test",
+            "args": [],
+            "isShellCommand": true,
+            "isBuildCommand": false,
+            "isTestCommand": true,
+            "showOutput": "always"
         }
     ]
 }
