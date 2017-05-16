@@ -38,24 +38,24 @@ suite("parseMaybe", function () {
 suite("parseMany", function () {
     var parser = Parser.parseMany(Parser.parseString("hi"));
 
-    test("miss", function () {
-        assert.sameMembers([], Parser.run(parser, "nope"));
-    });
-
     test("hit", function () {
         assert.sameMembers(["hi", "hi", "hi", "hi"], Parser.run(parser, "hihihihi"));    
+    });
+
+    test("miss succeeds with empty match", function () {
+        assert.sameMembers([], Parser.run(parser, "nope"));
     });
 });
 
 suite("parseMany1", function () {
     var parser = Parser.parseMany1(Parser.parseString("hi"));
 
-    test("miss", function () {
-        assert.throws(() => Parser.run(parser, "hi"), /Parse failure at 0:0: "hi" not found/);
-    });
-
     test("hit", function () {
         assert.sameMembers(["hi", "hi", "hi", "hi"], Parser.run(parser, "hihihihi"));    
+    });
+
+    test("miss fails", function () {
+        assert.throws(() => Parser.run(parser, "nope"), /Parse failure at 0:0: "hi" not found/);
     });
 });
 
@@ -95,10 +95,32 @@ suite("parseChain", function () {
     });
 });
 
+suite("parseCount", function () {
+    var parser = Parser.parseString("ok");
+    test("hit", function () {
+        assert.deepEqual(["ok", "ok"], Parser.run(Parser.parseCount(2, parser), "okokok"));
+        assert.deepEqual(["ok"], Parser.run(Parser.parseCount(1, parser), "okokok"));
+    });
+    test("miss", function () {
+        assert.throws(() => Parser.run(Parser.parseCount(2, parser), "okno"), /Parse failure at 0:2: "ok" not found/);
+    });
+});
+
+suite("parseEnd", function () {
+    var parser = Parser.parseChain([
+        Parser.parseString("this is the end"),
+        Parser.parseEnd()
+    ]);
+    test("hit", function () {
+        assert.deepEqual(["this is the end", null], Parser.run(parser, "this is the end"));
+    });
+    test("miss", function () {
+        assert.throws(() => Parser.run(parser, "this is the end, except it's not"), /Parse failure at 0:15: Not at end of string/);
+    });
+});
+
 /*
  * Remaining tests:
- *   Parser.parseCount
- *   Parser.parseEnd
  *   Parser.parseLookAhead
  *   Parser.parseSepBy
  *   Parser.parseSepBy1
