@@ -39,12 +39,33 @@ export function parseRegex(regex: RegExp): Parser<string> {
     };
 }
 
-export function parseExact(string: string): Parser<typeof string> {
+export function parseString(string: string): Parser<typeof string> {
     return (state: ParseState): Either<ParseResult<typeof string>> => {
         if (state.input.substr(state.offset, string.length) === string) {
             return resultSuccess(string, state.input, state.offset + string.length);
         } else {
             return resultFailure<typeof string>(`"${string}" not found`, state);
+        }
+    };
+}
+
+export function fromIterator<P,V>(generator: () => Iterator<Parser<P>|V>): Parser<V> {
+    return (state: ParseState) => {
+        var lastValue: any = undefined;
+        var iterator: Iterator<Parser<P>|V> = generator();
+        while (true) {
+            var result = iterator.next(lastValue);
+            if (result.done) {
+                return resultSuccess(result.value as V, state.input, state.offset);
+            } else {
+                var producedParser = result.value as Parser<P>;
+                var stepResult = producedParser(state);
+                if (isLeft(stepResult)) {
+                    return stepResult;
+                }
+                lastValue = stepResult.val.value;
+                state = stepResult.val.state;
+            }
         }
     };
 }
@@ -73,6 +94,14 @@ export function parseMany<P>(parser: Parser<P>): Parser<P[]> {
     };
 }
 
+export function parseMany1<P>(parser: Parser<P>): Parser<P[]> {
+    return fromIterator<P|P[],P[]>(function *() {
+        var one = yield parser;
+        var many = yield parseMany(parser);
+        return [one].concat(many);
+    });
+}
+
 export function parseChoice<V>(parsers: Parser<V>[]): Parser<V> {
     return (state: ParseState): Either<ParseResult<V>> => {
         var errors: string[] = [];
@@ -87,44 +116,79 @@ export function parseChoice<V>(parsers: Parser<V>[]): Parser<V> {
     }
 }
 
-export function parseSequence<V>(parsers: Parser<V>[]): Parser<V[]> {
-    return (state: ParseState): Either<ParseResult<V[]>> => {
+export function parseChain<V>(parsers: Parser<V>[]): Parser<V[]> {
+    return fromIterator<V,V[]>(function *() {
         var results: V[] = [];
         for (var parser of parsers) {
-            let result = parser(state);
-            if (isLeft(result)) {
-                return result;
-            }
-            results.push(result.val.value);
-            state = result.val.state;
+            results.push(yield parser);
         }
-        return resultSuccess(results, state.input, state.offset);
+        return results;
+    });
+}
+
+export function parseCount<V>(count: number, parser: Parser<V>): Parser<V[]> {
+    return fromIterator<V,V[]>(function *() {
+        var results: V[] = [];
+        for (var i = 0; i < count; ++i) {
+            results.push(yield parser);
+        }
+        return results;
+    });
+}
+
+export function parseSepBy1<S,V>(separator: Parser<S>, parser: Parser<V>): Parser<V[]> {
+    var maybeSeparator = parseMaybe(separator);
+    return fromIterator<S|V,V[]>(function *() {
+        var results: V[] = [];
+        while (true) {
+            results.push(yield parser);
+            var sepResult = yield separator;
+            if (sepResult === null) {
+                return results;
+            }
+        }
+    });
+}
+
+
+export function parseSepBy<S,V>(separator: Parser<S>, parser: Parser<V>): Parser<V[]> {
+    var maybeSeparator = parseMaybe(separator);
+    var maybeParser = parseMaybe(separator);
+    return fromIterator<S|V|null,V[]>(function *() {
+        var results: V[] = [];
+        var first = yield maybeParser;
+        if (first === null) {
+            return results;
+        } else {
+            results.push(first);
+        }
+        while (true) {
+            var sepResult = yield separator;
+            if (sepResult === null) {
+                return results;
+            }
+            results.push(yield parser);
+        }
+    });
+}
+
+export function parseLookAhead<P>(parser: Parser<P>): Parser<P> {
+    return (state: ParseState) => {
+        var result = parser(state);
+        if (isLeft(result)) {
+            return result;
+        } else {
+            return resultSuccess(result.val.value, state.input, state.offset);
+        }
     }
 }
 
-function isParser<T>(value: any): value is Parser<T> {
-    return typeof value === 'function' && value.length === 1; // It's the best we can do :(
-}
-
-export function fromIterator<V>(generator: () => Iterator<Parser<any>|V>): Parser<V> {
-    return (state: ParseState): Either<ParseResult<V>> => {
-        var lastValue: any = undefined;
-        var iterator = generator();
-        while (true) {
-            var result = iterator.next(lastValue);
-            if (result.done) {
-                return resultSuccess(result.value as V, state.input, state.offset);
-            } else {
-                if (!isParser<any>(result.value)) {
-                    throw new Error('fromIterator must *only* yield Parsers');
-                }
-                var stepResult = result.value(state);
-                if (isLeft(stepResult)) {
-                    return stepResult;
-                }
-                lastValue = stepResult.val.value;
-                state = stepResult.val.state;
-            }
+export function parseEnd(): Parser<null> {
+    return (state: ParseState) => {
+        if (state.offset >= state.input.length) {
+            return resultSuccess(null, state.input, state.offset);
+        } else {
+            return resultFailure<null>("Not at end of string", state);
         }
     };
 }
