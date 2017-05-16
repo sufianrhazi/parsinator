@@ -59,7 +59,7 @@ export function parseMaybe<P>(parser: Parser<P>): Parser<P | null> {
     }
 }
 
-export function parseAny<P>(parser: Parser<P>): Parser<P[]> {
+export function parseMany<P>(parser: Parser<P>): Parser<P[]> {
     return (state) => {
         var results: P[] = [];
         while (true) {

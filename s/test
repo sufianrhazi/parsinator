@@ -2,4 +2,4 @@
 set -e
 cd "$(dirname "$0")/.."
 s/tsc-build.sh
-find build/tsc/ -type f -name '*.test.js' -print0 | xargs -0 -I{} node {}
+find build/tsc/ -type f -name '*.test.js' -print0 | xargs -0 node node_modules/.bin/mocha --reporter=tap --ui=tdd
