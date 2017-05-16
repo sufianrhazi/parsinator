@@ -20,9 +20,22 @@ suite("parseRegex", function () {
     });
 
     test("miss", function () {
+        assert.throws(() => Parser.run(parser, "Oh! Hello, human!"), /Parse failure at 0:0: regex \/Hello, \.\*!\/ doesn't match/);
         assert.throws(() => Parser.run(parser, "Goodbye, world!"), /Parse failure at 0:0: regex \/Hello, \.\*!\/ doesn't match/);
     });
 });
+
+suite("parseRegexMatch", function () {
+    var parser = Parser.parseRegexMatch(/Hello, (.*)! ([0-9]+)/);
+    test("hit", function () {
+        assert.deepEqual(["Hello, world! 123", "world", "123"], Parser.run(parser, "Hello, world! 123"));
+    });
+
+    test("miss", function () {
+        assert.throws(() => Parser.run(parser, "Oh! Hello, human!"), /Parse failure at 0:0: regex \/Hello, \(\.\*\)! \(\[0-9\]\+\)\/ doesn't match/);
+        assert.throws(() => Parser.run(parser, "Goodbye, world!"), /Parse failure at 0:0: regex \/Hello, \(\.\*\)! \(\[0-9\]\+\)\/ doesn't match/);
+    });
+})
 
 suite("parseMaybe", function () {
     var parser = Parser.parseMaybe(Parser.parseString("Hit"));
@@ -119,10 +132,74 @@ suite("parseEnd", function () {
     });
 });
 
+suite("parseLookAhead", function () {
+    var parser = Parser.parseChain([
+        Parser.parseString("foo"),
+        Parser.parseLookAhead(Parser.parseString("bar")),
+        Parser.parseString("barbaz")
+    ]);
+    test("hit", function () {
+        assert.deepEqual(["foo", "bar", "barbaz"], Parser.run(parser, "foobarbaz"));
+    });
+    test("miss", function () {
+        assert.throws(() => Parser.run(parser, "foobazbaz"), /Parse failure at 0:3: "bar" not found/);
+        assert.throws(() => Parser.run(parser, "foobarbut"), /Parse failure at 0:3: "barbaz" not found/);
+    });
+});
+
+suite("parseSepBy", function () {
+    var words = Parser.parseSepBy(
+        Parser.parseRegex(/\s+/),
+        Parser.parseRegex(/[a-z]+/)
+    );
+
+    test("hit", function () {
+        assert.deepEqual(["why", "hello", "there"], Parser.run(words, "why hello\nthere"));
+        assert.deepEqual(["why", "hello"], Parser.run(words, "why\thello"));
+        assert.deepEqual(["why"], Parser.run(words, "why"));
+        assert.deepEqual([], Parser.run(words, "123"));
+    });
+    
+    test("miss", function () {
+        assert.throws(() => Parser.run(words, "why hello 123"), /Parse failure at 0:10: regex \/\[a-z\]\+\/ doesn't match/);
+    });
+});
+
+suite("parseSepBy1", function () {
+    var words = Parser.parseSepBy1(
+        Parser.parseRegex(/\s+/),
+        Parser.parseRegex(/[a-z]+/)
+    );
+
+    test("hit", function () {
+        assert.deepEqual(["why", "hello", "there"], Parser.run(words, "why hello\nthere"));
+        assert.deepEqual(["why", "hello"], Parser.run(words, "why\thello"));
+        assert.deepEqual(["why"], Parser.run(words, "why"));
+    });
+    
+    test("miss", function () {
+        assert.throws(() => Parser.run(words, "123"), /Parse failure at 0:0: regex \/\[a-z\]\+\/ doesn't match/);
+    });
+});
+
+suite("fromIterator", function () {
+    var parseDivisionExpression = Parser.fromIterator<number|string,number>(function *() {
+        var numerator = parseFloat(yield Parser.parseRegex(/[0-9]+\.[0-9]+/));
+        yield Parser.parseRegex(/\s*/);
+        yield Parser.parseString("/");
+        yield Parser.parseRegex(/\s*/);
+        var denominator = parseFloat(yield Parser.parseRegex(/[0-9]+\.[0-9]+/));
+        return numerator / denominator;
+    });
+
+    test("can be used to parse a complex expression", function () {
+        assert.equal(3.0 / 5.0, Parser.run(parseDivisionExpression, "3.0 / 5.0"));
+        assert.equal(42.0 / 21.0, Parser.run(parseDivisionExpression, "42.0/21.0"));
+        assert.equal(3.0 / 5.0, Parser.run(parseDivisionExpression, "3.0     /       5.0"));
+    });
+});
+
 /*
  * Remaining tests:
- *   Parser.parseLookAhead
- *   Parser.parseSepBy
- *   Parser.parseSepBy1
  *   Parser.fromIterator
  */

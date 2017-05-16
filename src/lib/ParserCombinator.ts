@@ -1,5 +1,7 @@
 import { Either, left, right, isLeft, isRight } from "./Either";
 
+const DEBUG = false;
+
 export interface ParseState {
     input: string;
     offset: number;
@@ -15,6 +17,15 @@ function resultSuccess<T>(value: T, input: string, offset: number): Either<Parse
     return right({ value, state: { input, offset }});
 }
 
+function formatState(state: ParseState): string {
+    var startOffset = Math.max(0, state.offset - 10);
+    var endOffset = Math.min(state.input.length, state.offset + 10);
+    var substr = JSON.stringify((startOffset === 0 ? '' : '...') + state.input.slice(startOffset, endOffset) + (endOffset === state.input.length ? '' : '...'));
+    var charsBefore = (startOffset === 0 ? 0 : 3) + JSON.stringify(state.input.slice(startOffset, state.offset)).length - 1;
+    var marker = new Array(charsBefore + 1).join(' ') + '^';
+    return `-> ${substr}\n   ${marker}`;
+}
+
 function resultFailure<T>(msg: string, state: ParseState): Either<ParseResult<T>> {
     var lines = 0;
     var lastLineStart = 0;
@@ -24,7 +35,7 @@ function resultFailure<T>(msg: string, state: ParseState): Either<ParseResult<T>
             lastLineStart = i;
         }
     }
-    return left(`Parse failure at ${lines}:${state.offset-lastLineStart}: ${msg}`);
+    return left(`Parse failure at ${lines}:${state.offset-lastLineStart}: ${msg}\n${formatState(state)}`);
 }
 
 export function parseRegex(regex: RegExp): Parser<string> {
@@ -32,10 +43,22 @@ export function parseRegex(regex: RegExp): Parser<string> {
         var remaining = state.input.slice(state.offset);
         var duplicated = new RegExp(regex);
         var result = duplicated.exec(remaining);
-        if (result === null) {
+        if (result === null || result.index !== 0) {
             return resultFailure<string>(`regex /${regex.source}/${regex.flags} doesn't match`, state);
         }
         return resultSuccess(result[0], state.input, state.offset + result[0].length);
+    };
+}
+
+export function parseRegexMatch(regex: RegExp): Parser<string[]> {
+    return (state: ParseState): Either<ParseResult<string[]>> => {
+        var remaining = state.input.slice(state.offset);
+        var duplicated = new RegExp(regex);
+        var result = duplicated.exec(remaining);
+        if (result === null || result.index !== 0) {
+            return resultFailure<string[]>(`regex /${regex.source}/${regex.flags} doesn't match`, state);
+        }
+        return resultSuccess(Array.from(result), state.input, state.offset + result[0].length);
     };
 }
 
@@ -56,6 +79,9 @@ export function fromIterator<P,V>(generator: () => Iterator<Parser<P>|V>): Parse
         while (true) {
             var result = iterator.next(lastValue);
             if (result.done) {
+                if (DEBUG) {
+                    console.log(`End value: ${JSON.stringify(result.value)}\nEnd state: ${formatState(state)}\n`);
+                }
                 return resultSuccess(result.value as V, state.input, state.offset);
             } else {
                 var producedParser = result.value as Parser<P>;
@@ -64,6 +90,9 @@ export function fromIterator<P,V>(generator: () => Iterator<Parser<P>|V>): Parse
                     return stepResult;
                 }
                 lastValue = stepResult.val.value;
+                if (DEBUG) {
+                    console.log(`Before: ${formatState(state)}\nValue: ${JSON.stringify(lastValue)}\nAfter: ${formatState(stepResult.val.state)}\n`);
+                }
                 state = stepResult.val.state;
             }
         }
@@ -138,11 +167,11 @@ export function parseCount<V>(count: number, parser: Parser<V>): Parser<V[]> {
 
 export function parseSepBy1<S,V>(separator: Parser<S>, parser: Parser<V>): Parser<V[]> {
     var maybeSeparator = parseMaybe(separator);
-    return fromIterator<S|V,V[]>(function *() {
+    return fromIterator<S|V|null,V[]>(function *() {
         var results: V[] = [];
         while (true) {
             results.push(yield parser);
-            var sepResult = yield separator;
+            var sepResult = yield maybeSeparator;
             if (sepResult === null) {
                 return results;
             }
@@ -150,10 +179,9 @@ export function parseSepBy1<S,V>(separator: Parser<S>, parser: Parser<V>): Parse
     });
 }
 
-
 export function parseSepBy<S,V>(separator: Parser<S>, parser: Parser<V>): Parser<V[]> {
     var maybeSeparator = parseMaybe(separator);
-    var maybeParser = parseMaybe(separator);
+    var maybeParser = parseMaybe(parser);
     return fromIterator<S|V|null,V[]>(function *() {
         var results: V[] = [];
         var first = yield maybeParser;
@@ -163,7 +191,7 @@ export function parseSepBy<S,V>(separator: Parser<S>, parser: Parser<V>): Parser
             results.push(first);
         }
         while (true) {
-            var sepResult = yield separator;
+            var sepResult = yield maybeSeparator;
             if (sepResult === null) {
                 return results;
             }
@@ -203,4 +231,8 @@ export function run<T>(parser: Parser<T>, input: string): T {
         throw new Error(result.val);
     }
     return result.val.value;
+}
+
+export function runToEnd<T>(parser: Parser<T>, input: string): T {
+    return run(parseChain([parser, parseEnd()]), input)[0] as T;
 }
