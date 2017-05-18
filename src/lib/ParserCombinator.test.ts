@@ -198,8 +198,3 @@ suite("fromIterator", function () {
         assert.equal(3.0 / 5.0, Parser.run(parseDivisionExpression, "3.0     /       5.0"));
     });
 });
-
-/*
- * Remaining tests:
- *   Parser.fromIterator
- */
