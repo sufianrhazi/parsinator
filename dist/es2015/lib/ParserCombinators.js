@@ -60,9 +60,9 @@ export function many1(parser) {
 export function choice(parsers) {
     return (state) => {
         var errors = [];
-        for (var parser of parsers) {
+        for (var i = 0; i < parsers.length; ++i) {
             try {
-                return parser(state);
+                return parsers[i](state);
             }
             catch (e) {
                 errors.push(e.message);
@@ -80,8 +80,8 @@ export function choice(parsers) {
 export function sequence(parsers) {
     return fromGenerator(function* () {
         var results = [];
-        for (var parser of parsers) {
-            results.push(yield parser);
+        for (var i = 0; i < parsers.length; ++i) {
+            results.push(yield parsers[i]);
         }
         return results;
     });

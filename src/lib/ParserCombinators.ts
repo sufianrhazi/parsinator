@@ -62,9 +62,9 @@ export function many1<P>(parser: Parser<P>): Parser<P[]> {
 export function choice<V>(parsers: Parser<V>[]): Parser<V> {
     return (state: ParseState): ParseResult<V> => {
         var errors: string[] = [];
-        for (var parser of parsers) {
+        for (var i = 0; i < parsers.length; ++i) {
             try {
-                return parser(state);
+                return parsers[i](state);
             } catch (e) {
                 errors.push(e.message);
             }
@@ -82,8 +82,8 @@ export function choice<V>(parsers: Parser<V>[]): Parser<V> {
 export function sequence<V>(parsers: Parser<V>[]): Parser<V[]> {
     return fromGenerator<V,V[]>(function *() {
         var results: V[] = [];
-        for (var parser of parsers) {
-            results.push(yield parser);
+        for (var i = 0; i < parsers.length; ++i) {
+            results.push(yield parsers[i]);
         }
         return results;
     });

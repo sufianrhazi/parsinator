@@ -346,10 +346,9 @@ System.register("lib/ParserCombinators", ["lib/ParserTypes", "lib/ParserHelpers"
     function choice(parsers) {
         return function (state) {
             var errors = [];
-            for (var _i = 0, parsers_1 = parsers; _i < parsers_1.length; _i++) {
-                var parser = parsers_1[_i];
+            for (var i = 0; i < parsers.length; ++i) {
                 try {
-                    return parser(state);
+                    return parsers[i](state);
                 }
                 catch (e) {
                     errors.push(e.message);
@@ -367,23 +366,22 @@ System.register("lib/ParserCombinators", ["lib/ParserTypes", "lib/ParserHelpers"
      */
     function sequence(parsers) {
         return Parser_1.fromGenerator(function () {
-            var results, _i, parsers_2, parser, _a, _b;
+            var results, i, _a, _b;
             return __generator(this, function (_c) {
                 switch (_c.label) {
                     case 0:
                         results = [];
-                        _i = 0, parsers_2 = parsers;
+                        i = 0;
                         _c.label = 1;
                     case 1:
-                        if (!(_i < parsers_2.length)) return [3 /*break*/, 4];
-                        parser = parsers_2[_i];
+                        if (!(i < parsers.length)) return [3 /*break*/, 4];
                         _b = (_a = results).push;
-                        return [4 /*yield*/, parser];
+                        return [4 /*yield*/, parsers[i]];
                     case 2:
                         _b.apply(_a, [_c.sent()]);
                         _c.label = 3;
                     case 3:
-                        _i++;
+                        ++i;
                         return [3 /*break*/, 1];
                     case 4: return [2 /*return*/, results];
                 }
