@@ -1,7 +1,5 @@
 import { Either, left, right, isLeft, isRight } from "./Either";
 
-const DEBUG = false;
-
 export interface ParseState {
     input: string;
     offset: number;
@@ -35,10 +33,16 @@ function resultFailure<T>(msg: string, state: ParseState): Either<ParseResult<T>
             lastLineStart = i;
         }
     }
-    return left(`Parse failure at ${lines}:${state.offset-lastLineStart}: ${msg}\n${formatState(state)}`);
+    return left(`Parse failure at ${1+lines}:${1+state.offset-lastLineStart}: ${msg}\n${formatState(state)}`);
 }
 
-export function parseRegex(regex: RegExp): Parser<string> {
+/**
+ * Produce the full string match from a regular expression.
+ * 
+ * @param regex The regular expression to match
+ * @return A parser producing the string matched by the regular expression
+ */
+export function regex(regex: RegExp): Parser<string> {
     return (state: ParseState): Either<ParseResult<string>> => {
         var remaining = state.input.slice(state.offset);
         var duplicated = new RegExp(regex);
@@ -50,7 +54,15 @@ export function parseRegex(regex: RegExp): Parser<string> {
     };
 }
 
-export function parseRegexMatch(regex: RegExp): Parser<string[]> {
+/**
+ * Produce the full match and all groups from a regular expression.
+ * 
+ * Produces a string array; item 0 is the full match.
+ *  
+ * @param regex The regular expression to match
+ * @return A parser producing an array of matching groups; item 0 is the full matching string
+ */
+export function regexMatch(regex: RegExp): Parser<string[]> {
     return (state: ParseState): Either<ParseResult<string[]>> => {
         var remaining = state.input.slice(state.offset);
         var duplicated = new RegExp(regex);
@@ -62,7 +74,13 @@ export function parseRegexMatch(regex: RegExp): Parser<string[]> {
     };
 }
 
-export function parseString(string: string): Parser<typeof string> {
+/**
+ * Produce a string value.
+ * 
+ * @param string the string value to parse
+ * @return A parser producing the matched string
+ */
+export function str(string: string): Parser<typeof string> {
     return (state: ParseState): Either<ParseResult<typeof string>> => {
         if (state.input.substr(state.offset, string.length) === string) {
             return resultSuccess(string, state.input, state.offset + string.length);
@@ -72,16 +90,21 @@ export function parseString(string: string): Parser<typeof string> {
     };
 }
 
-export function fromIterator<P,V>(generator: () => Iterator<Parser<P>|V>): Parser<V> {
+/**
+ * Produce the return value of the generator, which may yield to sub-parsers.
+ * 
+ * Yielded parsers evaluate to their produced value.
+ * 
+ * @param generator A generator function which yields Parsers and returns value
+ * @return A parser producing the returned value
+ */
+export function fromGenerator<P,V>(generator: () => Iterator<Parser<P>|V>): Parser<V> {
     return (state: ParseState) => {
         var lastValue: any = undefined;
         var iterator: Iterator<Parser<P>|V> = generator();
         while (true) {
             var result = iterator.next(lastValue);
             if (result.done) {
-                if (DEBUG) {
-                    console.log(`End value: ${JSON.stringify(result.value)}\nEnd state: ${formatState(state)}\n`);
-                }
                 return resultSuccess(result.value as V, state.input, state.offset);
             } else {
                 var producedParser = result.value as Parser<P>;
@@ -89,17 +112,20 @@ export function fromIterator<P,V>(generator: () => Iterator<Parser<P>|V>): Parse
                 if (isLeft(stepResult)) {
                     return stepResult;
                 }
-                lastValue = stepResult.val.value;
-                if (DEBUG) {
-                    console.log(`Before: ${formatState(state)}\nValue: ${JSON.stringify(lastValue)}\nAfter: ${formatState(stepResult.val.state)}\n`);
-                }
-                state = stepResult.val.state;
+                lastValue = stepResult.value.value;
+                state = stepResult.value.state;
             }
         }
     };
 }
 
-export function parseMaybe<P>(parser: Parser<P>): Parser<P | null> {
+/**
+ * Produce the parser's produced value or null on failure.
+ * 
+ * @param parser the parser to attempt
+ * @return a parser producing the wrapped parser's result or null on failure
+ */
+export function maybe<P>(parser: Parser<P>): Parser<P | null> {
     return (state) => {
         var result = parser(state);
         if (isRight(result)) {
@@ -109,7 +135,13 @@ export function parseMaybe<P>(parser: Parser<P>): Parser<P | null> {
     }
 }
 
-export function parseMany<P>(parser: Parser<P>): Parser<P[]> {
+/**
+ * Produce an array of items from applying a parser any number of times (including zero).
+ * 
+ * @param parser a parser to match multiple times
+ * @return a parser producing an array of parsed values
+ */
+export function many<P>(parser: Parser<P>): Parser<P[]> {
     return (state) => {
         var results: P[] = [];
         while (true) {
@@ -117,21 +149,33 @@ export function parseMany<P>(parser: Parser<P>): Parser<P[]> {
             if (isLeft(result)) {
                 return resultSuccess(results, state.input, state.offset);
             }
-            results.push(result.val.value);
-            state = result.val.state;
+            results.push(result.value.value);
+            state = result.value.state;
         }
     };
 }
 
-export function parseMany1<P>(parser: Parser<P>): Parser<P[]> {
-    return fromIterator<P|P[],P[]>(function *() {
+/**
+ * Produce an array of items from applying a parserat least once.
+ * 
+ * @param parser the parser to execute multiple times
+ * @return a parser producing an array of parsed values
+ */
+export function many1<P>(parser: Parser<P>): Parser<P[]> {
+    return fromGenerator<P|P[],P[]>(function *() {
         var one = yield parser;
-        var many = yield parseMany(parser);
-        return [one].concat(many);
+        var multiple = yield many(parser);
+        return [one].concat(multiple);
     });
 }
 
-export function parseChoice<V>(parsers: Parser<V>[]): Parser<V> {
+/**
+ * Produce the first successful result of matching the provided parsers
+ * 
+ * @param parsers an array of parsers to try
+ * @return a parser producing the first succeeding parser's value
+ */
+export function choice<V>(parsers: Parser<V>[]): Parser<V> {
     return (state: ParseState): Either<ParseResult<V>> => {
         var errors: string[] = [];
         for (var parser of parsers) {
@@ -139,14 +183,20 @@ export function parseChoice<V>(parsers: Parser<V>[]): Parser<V> {
             if (isRight(result)) {
                 return result;
             }
-            errors.push(result.val);
+            errors.push(result.value);
         }
         return left('Parse failure; potential matches:\n- ' + errors.join('\n- '));
     }
 }
 
-export function parseChain<V>(parsers: Parser<V>[]): Parser<V[]> {
-    return fromIterator<V,V[]>(function *() {
+/**
+ * Produce a parser whichruns the parsers in sequence, returning an array of results
+ * 
+ * @param parsers the parsers to execute in sequence
+ * @return a parser producing an array of parsed values
+ */
+export function sequence<V>(parsers: Parser<V>[]): Parser<V[]> {
+    return fromGenerator<V,V[]>(function *() {
         var results: V[] = [];
         for (var parser of parsers) {
             results.push(yield parser);
@@ -155,22 +205,38 @@ export function parseChain<V>(parsers: Parser<V>[]): Parser<V[]> {
     });
 }
 
-export function parseCount<V>(count: number, parser: Parser<V>): Parser<V[]> {
-    return fromIterator<V,V[]>(function *() {
+/**
+ * Produce an array of values from a parser run a specific number of times
+ * 
+ * @param num the number of times to run the parser
+ * @param parser the parser to repeat
+ * @return a parser producing an array of parsed values
+ */
+export function count<V>(num: number, parser: Parser<V>): Parser<V[]> {
+    return fromGenerator<V,V[]>(function *() {
         var results: V[] = [];
-        for (var i = 0; i < count; ++i) {
+        for (var i = 0; i < num; ++i) {
             results.push(yield parser);
         }
         return results;
     });
 }
 
-export function parseSepBy1<S,V>(separator: Parser<S>, parser: Parser<V>): Parser<V[]> {
-    var maybeSeparator = parseMaybe(separator);
-    return fromIterator<S|V|null,V[]>(function *() {
+/**
+ * Produce an array of values obtained from a value parser which are each separated by a separator parser.
+ *
+ * The value parser must match at least once.
+ * 
+ * @param sepParser a parser producing ignored separation values
+ * @param matParser a parser producing values desired
+ * @return a parser producing valParser values and consuming valParser/sepParser/valParser/...etc input
+ */
+export function sepBy1<S,V>(sepParser: Parser<S>, valParser: Parser<V>): Parser<V[]> {
+    var maybeSeparator = maybe(sepParser);
+    return fromGenerator<S|V|null,V[]>(function *() {
         var results: V[] = [];
         while (true) {
-            results.push(yield parser);
+            results.push(yield valParser);
             var sepResult = yield maybeSeparator;
             if (sepResult === null) {
                 return results;
@@ -179,10 +245,19 @@ export function parseSepBy1<S,V>(separator: Parser<S>, parser: Parser<V>): Parse
     });
 }
 
-export function parseSepBy<S,V>(separator: Parser<S>, parser: Parser<V>): Parser<V[]> {
-    var maybeSeparator = parseMaybe(separator);
-    var maybeParser = parseMaybe(parser);
-    return fromIterator<S|V|null,V[]>(function *() {
+/**
+ * Produce an array of values obtained from a value parser which are each separated by a separator parser.
+ * 
+ * The value parser may not match at all
+ * 
+ * @param sepParser a parser producing ignored separation values
+ * @param valParser a parser producing values desired
+ * @return a parser producing valParser values and consuming valParser/sepParser/valParser/...etc input
+ */
+export function sepBy<S,V>(sepParser: Parser<S>, valParser: Parser<V>): Parser<V[]> {
+    var maybeSeparator = maybe(sepParser);
+    var maybeParser = maybe(valParser);
+    return fromGenerator<S|V|null,V[]>(function *() {
         var results: V[] = [];
         var first = yield maybeParser;
         if (first === null) {
@@ -195,32 +270,89 @@ export function parseSepBy<S,V>(separator: Parser<S>, parser: Parser<V>): Parser
             if (sepResult === null) {
                 return results;
             }
-            results.push(yield parser);
+            results.push(yield valParser);
         }
     });
 }
 
-export function parseLookAhead<P>(parser: Parser<P>): Parser<P> {
+/**
+ * Produce a value by running the parser, but not advancing the parsed state.
+ * 
+ * @param parser a parser producing any value
+ * @return a parser producing the wrapped parser's value
+ */
+export function peek<P>(parser: Parser<P>): Parser<P> {
     return (state: ParseState) => {
         var result = parser(state);
         if (isLeft(result)) {
             return result;
         } else {
-            return resultSuccess(result.val.value, state.input, state.offset);
+            return resultSuccess(result.value.value, state.input, state.offset);
         }
     }
 }
 
-export function parseEnd(): Parser<null> {
-    return (state: ParseState) => {
-        if (state.offset >= state.input.length) {
-            return resultSuccess(null, state.input, state.offset);
-        } else {
-            return resultFailure<null>("Not at end of string", state);
+/**
+ * @var end A parser which produces null at the end of input and fails if there is more input. 
+ */
+export const end: Parser<null> = (state: ParseState) => {
+    if (state.offset >= state.input.length) {
+        return resultSuccess(null, state.input, state.offset);
+    } else {
+        return resultFailure<null>("Not at end of string", state);
+    }
+};
+
+/**
+ * Produce the string input consumed until the terminator parser matches.
+ * 
+ * The terminator parser is not consumed.
+ * 
+ * @param terminator A parser that consumes an end token
+ * @return A parser producing the string input consumed until the terminator parser.
+ */
+export function until<T>(terminator: Parser<T>): Parser<string> {
+    return (state) => {
+        for (var i = state.offset; i <= state.input.length; ++i) { // why i <= len? end terminators only match if offset = len. 
+            if (isRight(terminator({ input: state.input, offset: i }))) {
+                return resultSuccess(state.input.slice(state.offset, i), state.input, i);
+            }
         }
+        return resultFailure<string>("Didn't find terminator", state);
     };
 }
 
+/**
+ * Produce the string input between the start and end parsers
+ * @param start A parser consuming a start token 
+ * @param end A parser consuming an end token
+ */
+export function between<T>(start: Parser<T>, end: Parser<T>): Parser<string> {
+    return fromGenerator(function *() {
+        yield start;
+        var data = yield until(end);
+        yield end;
+        return data;
+    })
+}
+
+/**
+ * @var debugTrace A parser which consumes nothing but logs the parser state to console.log
+ */
+export function debugTrace(state: ParseState): Either<ParseResult<undefined>> {
+    console.log(formatState(state));
+    return resultSuccess<undefined>(undefined, state.input, state.offset);
+}
+
+/**
+ * Run a parser on an input, returning the parser's produced value.
+ * 
+ * The parser does not need to consume the entire input.
+ * 
+ * @param parser The parser to run
+ * @param input The input string to run
+ * @return The value produced by the parser
+ */
 export function run<T>(parser: Parser<T>, input: string): T {
     var state = {
         input: input,
@@ -228,11 +360,20 @@ export function run<T>(parser: Parser<T>, input: string): T {
     };
     var result = parser(state);
     if (isLeft(result)) {
-        throw new Error(result.val);
+        throw new Error(result.value);
     }
-    return result.val.value;
+    return result.value.value;
 }
 
+/**
+ * Run a parser on the full input, returning the parser's produced value.
+ * 
+ * Fails if the parser does not consume the entire input.
+ * 
+ * @param parser The parser to run
+ * @param input The input string to run
+ * @return The value produced by the parser
+ */
 export function runToEnd<T>(parser: Parser<T>, input: string): T {
-    return run(parseChain([parser, parseEnd()]), input)[0] as T;
+    return run(sequence([parser, end]), input)[0] as T;
 }

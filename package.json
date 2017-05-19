@@ -1,14 +1,14 @@
 {
-  "name": "graphing-calculator",
-  "version": "1.0.0",
-  "description": "",
-  "main": "book-of-time.js",
+  "name": "@srhazi/parsinator",
+  "version": "0.0.1",
+  "description": "A parser combinator library for javascript and typescript",
+  "keywords": ["parser", "parser combinator", "parsec", "attoparsec"],
+  "homepage": "https://abstract.properties/project/parsinator",
+  "main": "build/parsinator.js",
+  "type": "build/parsinator.d.ts",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "s/test"
   },
-  "author": "",
-  "license": "ISC",
-  "dependencies": {
-    "three": "^0.85.2"
-  }
+  "author": "Sufian Rhazi <sufian@gmail.com> (https://abstract.properties)",
+  "license": "MIT"
 }
