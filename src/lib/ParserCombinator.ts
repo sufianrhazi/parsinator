@@ -1,5 +1,3 @@
-import { Either, left, right, isLeft, isRight } from "./Either";
-
 export interface ParseState {
     input: string;
     offset: number;
@@ -9,10 +7,16 @@ export interface ParseResult<T> {
     state: ParseState;
 }
 
-export type Parser<T> = (state: ParseState) => Either<ParseResult<T>>;
+export type Parser<T> = (state: ParseState) => ParseResult<T>;
 
-function resultSuccess<T>(value: T, input: string, offset: number): Either<ParseResult<T>> {
-    return right({ value, state: { input, offset }});
+function resultSuccess<T>(value: T, input: string, offset: number): ParseResult<T> {
+    return {
+        value: value,
+        state: {
+            input: input,
+            offset: offset,
+        },
+    };
 }
 
 function formatState(state: ParseState): string {
@@ -24,7 +28,31 @@ function formatState(state: ParseState): string {
     return `-> ${substr}\n   ${marker}`;
 }
 
-function resultFailure<T>(msg: string, state: ParseState): Either<ParseResult<T>> {
+export class ParseError extends Error {
+    public line: number;
+    public col: number;
+    public offset: number;
+    public input: string;
+
+    constructor(msg: string, line: number, col: number, state: ParseState) {
+        super(msg);
+        this.line = line;
+        this.col = col;
+        this.offset = state.offset;
+        this.input = state.input;
+    }}
+
+class ParseErrorDetail extends ParseError {
+    constructor(msg: string, line: number, col: number, state: ParseState) {
+        super(`Parse failure at ${line}:${col}: ${msg}\n${formatState(state)}`, line, col, state);
+        this.line = line;
+        this.col = col;
+        this.offset = state.offset;
+        this.input = state.input;
+    }
+}
+
+function resultFailure<T>(msg: string, state: ParseState, ErrorConstructor: new (msg: string, line: number, col: number, state: ParseState) => T): T {
     var lines = 0;
     var lastLineStart = 0;
     for (var i = 0; i < state.offset; ++i) {
@@ -33,7 +61,9 @@ function resultFailure<T>(msg: string, state: ParseState): Either<ParseResult<T>
             lastLineStart = i;
         }
     }
-    return left(`Parse failure at ${1+lines}:${1+state.offset-lastLineStart}: ${msg}\n${formatState(state)}`);
+    var line = 1 + lines;
+    var col = 1 + state.offset - lastLineStart;
+    return new ErrorConstructor(msg, line, col, state);
 }
 
 /**
@@ -43,12 +73,12 @@ function resultFailure<T>(msg: string, state: ParseState): Either<ParseResult<T>
  * @return A parser producing the string matched by the regular expression
  */
 export function regex(regex: RegExp): Parser<string> {
-    return (state: ParseState): Either<ParseResult<string>> => {
+    return (state: ParseState): ParseResult<string> => {
         var remaining = state.input.slice(state.offset);
         var duplicated = new RegExp(regex);
         var result = duplicated.exec(remaining);
         if (result === null || result.index !== 0) {
-            return resultFailure<string>(`regex /${regex.source}/${regex.flags} doesn't match`, state);
+            throw resultFailure(`regex /${regex.source}/${regex.flags} doesn't match`, state, ParseErrorDetail);
         }
         return resultSuccess(result[0], state.input, state.offset + result[0].length);
     };
@@ -63,12 +93,12 @@ export function regex(regex: RegExp): Parser<string> {
  * @return A parser producing an array of matching groups; item 0 is the full matching string
  */
 export function regexMatch(regex: RegExp): Parser<string[]> {
-    return (state: ParseState): Either<ParseResult<string[]>> => {
+    return (state: ParseState): ParseResult<string[]> => {
         var remaining = state.input.slice(state.offset);
         var duplicated = new RegExp(regex);
         var result = duplicated.exec(remaining);
         if (result === null || result.index !== 0) {
-            return resultFailure<string[]>(`regex /${regex.source}/${regex.flags} doesn't match`, state);
+            throw resultFailure(`regex /${regex.source}/${regex.flags} doesn't match`, state, ParseErrorDetail);
         }
         return resultSuccess(Array.from(result), state.input, state.offset + result[0].length);
     };
@@ -81,11 +111,11 @@ export function regexMatch(regex: RegExp): Parser<string[]> {
  * @return A parser producing the matched string
  */
 export function str(string: string): Parser<typeof string> {
-    return (state: ParseState): Either<ParseResult<typeof string>> => {
+    return (state: ParseState): ParseResult<typeof string> => {
         if (state.input.substr(state.offset, string.length) === string) {
             return resultSuccess(string, state.input, state.offset + string.length);
         } else {
-            return resultFailure<typeof string>(`"${string}" not found`, state);
+            throw resultFailure(`"${string}" not found`, state, ParseErrorDetail);
         }
     };
 }
@@ -109,11 +139,8 @@ export function fromGenerator<P,V>(generator: () => Iterator<Parser<P>|V>): Pars
             } else {
                 var producedParser = result.value as Parser<P>;
                 var stepResult = producedParser(state);
-                if (isLeft(stepResult)) {
-                    return stepResult;
-                }
-                lastValue = stepResult.value.value;
-                state = stepResult.value.state;
+                lastValue = stepResult.value;
+                state = stepResult.state;
             }
         }
     };
@@ -127,11 +154,11 @@ export function fromGenerator<P,V>(generator: () => Iterator<Parser<P>|V>): Pars
  */
 export function maybe<P>(parser: Parser<P>): Parser<P | null> {
     return (state) => {
-        var result = parser(state);
-        if (isRight(result)) {
-            return result;
+        try {
+            return parser(state);
+        } catch (e) {
+            return resultSuccess(null, state.input, state.offset);
         }
-        return resultSuccess(null, state.input, state.offset);
     }
 }
 
@@ -145,12 +172,13 @@ export function many<P>(parser: Parser<P>): Parser<P[]> {
     return (state) => {
         var results: P[] = [];
         while (true) {
-            var result = parser(state);
-            if (isLeft(result)) {
+            try {
+                var result = parser(state);
+            } catch (e) {
                 return resultSuccess(results, state.input, state.offset);
             }
-            results.push(result.value.value);
-            state = result.value.state;
+            results.push(result.value);
+            state = result.state;
         }
     };
 }
@@ -176,16 +204,16 @@ export function many1<P>(parser: Parser<P>): Parser<P[]> {
  * @return a parser producing the first succeeding parser's value
  */
 export function choice<V>(parsers: Parser<V>[]): Parser<V> {
-    return (state: ParseState): Either<ParseResult<V>> => {
+    return (state: ParseState): ParseResult<V> => {
         var errors: string[] = [];
         for (var parser of parsers) {
-            let result = parser(state);
-            if (isRight(result)) {
-                return result;
+            try {
+                return parser(state);
+            } catch (e) {
+                errors.push(e.message);
             }
-            errors.push(result.value);
         }
-        return left('Parse failure; potential matches:\n- ' + errors.join('\n- '));
+        throw resultFailure('Parse failure; potential matches:\n- ' + errors.join('\n- '), state, ParseError);
     }
 }
 
@@ -284,11 +312,7 @@ export function sepBy<S,V>(sepParser: Parser<S>, valParser: Parser<V>): Parser<V
 export function peek<P>(parser: Parser<P>): Parser<P> {
     return (state: ParseState) => {
         var result = parser(state);
-        if (isLeft(result)) {
-            return result;
-        } else {
-            return resultSuccess(result.value.value, state.input, state.offset);
-        }
+        return resultSuccess(result.value, state.input, state.offset);
     }
 }
 
@@ -299,7 +323,7 @@ export const end: Parser<null> = (state: ParseState) => {
     if (state.offset >= state.input.length) {
         return resultSuccess(null, state.input, state.offset);
     } else {
-        return resultFailure<null>("Not at end of string", state);
+        throw resultFailure("Not at end of string", state, ParseErrorDetail);
     }
 };
 
@@ -314,11 +338,14 @@ export const end: Parser<null> = (state: ParseState) => {
 export function until<T>(terminator: Parser<T>): Parser<string> {
     return (state) => {
         for (var i = state.offset; i <= state.input.length; ++i) { // why i <= len? end terminators only match if offset = len. 
-            if (isRight(terminator({ input: state.input, offset: i }))) {
+            try {
+                terminator({ input: state.input, offset: i });
                 return resultSuccess(state.input.slice(state.offset, i), state.input, i);
+            } catch (e) {
+                // ignore and proceed
             }
         }
-        return resultFailure<string>("Didn't find terminator", state);
+        throw resultFailure("Didn't find terminator", state, ParseErrorDetail);
     };
 }
 
@@ -339,7 +366,7 @@ export function between<T>(start: Parser<T>, end: Parser<T>): Parser<string> {
 /**
  * @var debugTrace A parser which consumes nothing but logs the parser state to console.log
  */
-export function debugTrace(state: ParseState): Either<ParseResult<undefined>> {
+export function debugTrace(state: ParseState): ParseResult<undefined> {
     console.log(formatState(state));
     return resultSuccess<undefined>(undefined, state.input, state.offset);
 }
@@ -359,10 +386,7 @@ export function run<T>(parser: Parser<T>, input: string): T {
         offset: 0,
     };
     var result = parser(state);
-    if (isLeft(result)) {
-        throw new Error(result.value);
-    }
-    return result.value.value;
+    return result.value;
 }
 
 /**
