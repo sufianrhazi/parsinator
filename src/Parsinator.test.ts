@@ -199,8 +199,16 @@ suite("fromGenerator", function () {
     });
 });
 
+suite("map", function () {
+    test('basic wrapping', function () {
+        var parser = Parser.str('hello');
+        var excited = Parser.map(parser, (str) => str + '!');
+        assert.equal('hello!', Parser.run(excited, 'hello'));
+    });
+});
+
 suite("Documentation", function () {
-    test("email name string", function () {
+    test("homepage email string", function () {
         const emailParser = Parser.between(Parser.str("<"), Parser.str(">"));
 
         const urlParser = Parser.between(Parser.str("("), Parser.str(")"));
@@ -250,5 +258,42 @@ suite("Documentation", function () {
             email: null,
             url: null
         }, Parser.run(infoParser, "Parsinator"));
+    });
+
+    test('readme es2015', function () {
+        var parseNaturalNumber: Parser.Parser<number> = Parser.map<string,number>(
+            Parser.regex(/[1-9][0-9]*|0/),
+            (str: string): number => parseInt(str, 10)
+        );
+
+        var parseSum: Parser.Parser<number> = Parser.fromGenerator(function *() {
+            var left = yield parseNaturalNumber;
+            yield Parser.str("+");
+            var right = yield parseNaturalNumber;
+            return left + right;
+        });
+
+        assert.strictEqual(579, Parser.run(parseSum, "123+456"));
+        assert.throws(() => Parser.run(parseSum, "23.5+92"), 'Parse failure at 1:3: "+" not found');
+    });
+
+    test('readme es5', function () {
+        var parseNaturalNumber = Parser.map(
+            Parser.regex(/[1-9][0-9]*|0/),
+            function (str) {
+                return parseInt(str, 10);
+            }
+        );
+
+        var parseSum = Parser.map(Parser.sequence<number|string>([
+            parseNaturalNumber,
+            Parser.str("+"),
+            parseNaturalNumber
+        ]), function (items) {
+            return (items[0] as number) + (items[2] as number);
+        });
+
+        assert.strictEqual(579, Parser.run(parseSum, "123+456"));
+        assert.throws(() => Parser.run(parseSum, "23.5+92"), 'Parse failure at 1:3: "+" not found');
     });
 });

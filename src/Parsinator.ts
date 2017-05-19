@@ -23,6 +23,7 @@ export {
     peek,
     until,
     between,
+    map,
 } from './lib/ParserCombinators';
 
 export {
