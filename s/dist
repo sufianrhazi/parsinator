@@ -11,6 +11,7 @@ node_modules/.bin/tsc \
     --lib es2015 \
     --sourceMap \
     --strict \
+    --declaration \
     src/Parsinator.ts
 
 echo "module: TypeScript -> ES5 commonjs"
@@ -21,6 +22,7 @@ node_modules/.bin/tsc \
     --lib es2015 \
     --sourceMap \
     --strict \
+    --declaration \
     src/Parsinator.ts
 
 echo "lib: TypeScript -> ES5 amd"
