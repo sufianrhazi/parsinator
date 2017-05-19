@@ -10,7 +10,7 @@ npm install parsinator
 
 ## Usage
 
-TypeScript:
+### TypeScript
 
 ```ts
 import * as Parser from 'parsinator';
@@ -34,7 +34,7 @@ Parser.run(parseSum, "23.5+92"); // throws error:
 //       ^
 ```
 
-JavaScript (ES2015):
+### JavaScript (ES2015)
 
 ```js
 import * as Parser from 'parsinator';
@@ -58,7 +58,10 @@ Parser.run(parseSum, "23.5+92"); // throws error:
 //       ^
 ```
 
-JavaScript (ES5+commonjs):
+### JavaScript (ES5+commonjs)
+
+Unfortunately, generator functions aren't in ES5, so you lose the monadic
+interface and must rely on a more manual approach.
 
 ```js
 var Parser = require('parsinator');
