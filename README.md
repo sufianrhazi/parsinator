@@ -1,12 +1,18 @@
 # Parsinator
 
-Parsinator is a TypeScript/JavaScript library that lets you build small well-defined parsers which can be combined together to accomplish just about any parsing task.
+Parsinator is a TypeScript/JavaScript library that lets you build small well-defined parsers which can be combined
+together to accomplish just about any parsing task.
 
 ## Installation
 
 ```bash
 npm install parsinator
 ```
+
+## Documentation
+
+Technical documentation is a bit light, so your best bet is to look at the docstrings in the typescript declaration
+files: [dist/es5-bundle/parsinator-amd.d.ts](dist/es5-bundle/parsinator-amd.d.ts)
 
 ## Usage
 
