@@ -1,0 +1,27 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.VERSION = '1.0.0';
+var Parser_1 = require("./lib/Parser");
+exports.str = Parser_1.str;
+exports.regex = Parser_1.regex;
+exports.regexMatch = Parser_1.regexMatch;
+exports.end = Parser_1.end;
+exports.debugTrace = Parser_1.debugTrace;
+exports.run = Parser_1.run;
+exports.runToEnd = Parser_1.runToEnd;
+exports.fromGenerator = Parser_1.fromGenerator;
+var ParserCombinators_1 = require("./lib/ParserCombinators");
+exports.maybe = ParserCombinators_1.maybe;
+exports.many = ParserCombinators_1.many;
+exports.many1 = ParserCombinators_1.many1;
+exports.choice = ParserCombinators_1.choice;
+exports.sequence = ParserCombinators_1.sequence;
+exports.count = ParserCombinators_1.count;
+exports.sepBy = ParserCombinators_1.sepBy;
+exports.sepBy1 = ParserCombinators_1.sepBy1;
+exports.peek = ParserCombinators_1.peek;
+exports.until = ParserCombinators_1.until;
+exports.between = ParserCombinators_1.between;
+var ParserTypes_1 = require("./lib/ParserTypes");
+exports.ParseError = ParserTypes_1.ParseError;
+//# sourceMappingURL=Parsinator.js.map
