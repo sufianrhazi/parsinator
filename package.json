@@ -1,5 +1,5 @@
 {
-  "name": "@srhazi/parsinator",
+  "name": "parsinator",
   "version": "1.0.0",
   "description": "A parser combinator library for javascript and typescript",
   "keywords": [
@@ -10,7 +10,7 @@
   ],
   "homepage": "https://abstract.properties/project/parsinator",
   "main": "dist/es5-commonjs/Parsinator.js",
-  "type": "dist/es5-commonjs/Parsinator.d.ts",
+  "types": "dist/es5-commonjs/Parsinator.d.ts",
   "scripts": {
     "test": "s/test"
   },
