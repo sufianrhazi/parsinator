@@ -338,7 +338,7 @@ System.register("lib/ParserCombinators", ["lib/ParserTypes", "lib/ParserHelpers"
     }
     exports_4("many1", many1);
     /**
-     * Produce the first successful result of matching the provided parsers
+     * Produce the first successful result of matching the provided parsers.
      *
      * @param parsers an array of parsers to try
      * @return a parser producing the first succeeding parser's value
@@ -359,7 +359,7 @@ System.register("lib/ParserCombinators", ["lib/ParserTypes", "lib/ParserHelpers"
     }
     exports_4("choice", choice);
     /**
-     * Produce a parser whichruns the parsers in sequence, returning an array of results
+     * Produce a parser whichruns the parsers in sequence, returning an array of results.
      *
      * @param parsers the parsers to execute in sequence
      * @return a parser producing an array of parsed values
@@ -390,7 +390,7 @@ System.register("lib/ParserCombinators", ["lib/ParserTypes", "lib/ParserHelpers"
     }
     exports_4("sequence", sequence);
     /**
-     * Produce an array of values from a parser run a specific number of times
+     * Produce an array of values from a parser run a specific number of times.
      *
      * @param num the number of times to run the parser
      * @param parser the parser to repeat
@@ -425,7 +425,6 @@ System.register("lib/ParserCombinators", ["lib/ParserTypes", "lib/ParserHelpers"
      * Produce an array of values obtained from a value parser which are each separated by a separator parser.
      *
      * The value parser must match at least once.
-    
      *
      * @param sepParser a parser producing ignored separation values
      * @param valParser a parser producing values desired
@@ -462,7 +461,7 @@ System.register("lib/ParserCombinators", ["lib/ParserTypes", "lib/ParserHelpers"
     /**
      * Produce an array of values obtained from a value parser which are each separated by a separator parser.
      *
-     * The value parser may not match at all
+     * The value parser may not match at all.
      *
      * @param sepParser a parser producing ignored separation values
      * @param valParser a parser producing values desired
@@ -543,7 +542,8 @@ System.register("lib/ParserCombinators", ["lib/ParserTypes", "lib/ParserHelpers"
     }
     exports_4("until", until);
     /**
-     * Produce the string input between the start and end parsers
+     * Produce the string input between the start and end parsers.
+     *
      * @param start A parser consuming a start token
      * @param end A parser consuming an end token
      */
@@ -567,6 +567,22 @@ System.register("lib/ParserCombinators", ["lib/ParserTypes", "lib/ParserHelpers"
         });
     }
     exports_4("between", between);
+    /**
+     * Produce a value transformed by a provided function.
+     *
+     * @param parser the parser to wrap
+     * @param fn function to transform the value produced by the parsed
+     */
+    function map(parser, fn) {
+        return function (state) {
+            var result = parser(state);
+            return {
+                state: result.state,
+                value: fn(result.value)
+            };
+        };
+    }
+    exports_4("map", map);
     var ParserTypes_2, ParserHelpers_2, Parser_1;
     return {
         setters: [
@@ -614,7 +630,8 @@ System.register("Parsinator", ["lib/Parser", "lib/ParserCombinators", "lib/Parse
                     "sepBy1": ParserCombinators_1_1["sepBy1"],
                     "peek": ParserCombinators_1_1["peek"],
                     "until": ParserCombinators_1_1["until"],
-                    "between": ParserCombinators_1_1["between"]
+                    "between": ParserCombinators_1_1["between"],
+                    "map": ParserCombinators_1_1["map"]
                 });
             },
             function (ParserTypes_3_1) {

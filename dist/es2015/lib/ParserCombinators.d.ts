@@ -21,21 +21,21 @@ export declare function many<P>(parser: Parser<P>): Parser<P[]>;
  */
 export declare function many1<P>(parser: Parser<P>): Parser<P[]>;
 /**
- * Produce the first successful result of matching the provided parsers
+ * Produce the first successful result of matching the provided parsers.
  *
  * @param parsers an array of parsers to try
  * @return a parser producing the first succeeding parser's value
  */
 export declare function choice<V>(parsers: Parser<V>[]): Parser<V>;
 /**
- * Produce a parser whichruns the parsers in sequence, returning an array of results
+ * Produce a parser whichruns the parsers in sequence, returning an array of results.
  *
  * @param parsers the parsers to execute in sequence
  * @return a parser producing an array of parsed values
  */
 export declare function sequence<V>(parsers: Parser<V>[]): Parser<V[]>;
 /**
- * Produce an array of values from a parser run a specific number of times
+ * Produce an array of values from a parser run a specific number of times.
  *
  * @param num the number of times to run the parser
  * @param parser the parser to repeat
@@ -46,7 +46,6 @@ export declare function count<V>(num: number, parser: Parser<V>): Parser<V[]>;
  * Produce an array of values obtained from a value parser which are each separated by a separator parser.
  *
  * The value parser must match at least once.
-
  *
  * @param sepParser a parser producing ignored separation values
  * @param valParser a parser producing values desired
@@ -56,7 +55,7 @@ export declare function sepBy1<S, V>(sepParser: Parser<S>, valParser: Parser<V>)
 /**
  * Produce an array of values obtained from a value parser which are each separated by a separator parser.
  *
- * The value parser may not match at all
+ * The value parser may not match at all.
  *
  * @param sepParser a parser producing ignored separation values
  * @param valParser a parser producing values desired
@@ -80,8 +79,16 @@ export declare function peek<P>(parser: Parser<P>): Parser<P>;
  */
 export declare function until<T>(terminator: Parser<T>): Parser<string>;
 /**
- * Produce the string input between the start and end parsers
+ * Produce the string input between the start and end parsers.
+ *
  * @param start A parser consuming a start token
  * @param end A parser consuming an end token
  */
 export declare function between<T>(start: Parser<T>, end: Parser<T>): Parser<string>;
+/**
+ * Produce a value transformed by a provided function.
+ *
+ * @param parser the parser to wrap
+ * @param fn function to transform the value produced by the parsed
+ */
+export declare function map<V, W>(parser: Parser<V>, fn: (val: V) => W): Parser<W>;

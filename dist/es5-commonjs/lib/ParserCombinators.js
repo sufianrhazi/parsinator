@@ -93,7 +93,7 @@ function many1(parser) {
 }
 exports.many1 = many1;
 /**
- * Produce the first successful result of matching the provided parsers
+ * Produce the first successful result of matching the provided parsers.
  *
  * @param parsers an array of parsers to try
  * @return a parser producing the first succeeding parser's value
@@ -114,7 +114,7 @@ function choice(parsers) {
 }
 exports.choice = choice;
 /**
- * Produce a parser whichruns the parsers in sequence, returning an array of results
+ * Produce a parser whichruns the parsers in sequence, returning an array of results.
  *
  * @param parsers the parsers to execute in sequence
  * @return a parser producing an array of parsed values
@@ -145,7 +145,7 @@ function sequence(parsers) {
 }
 exports.sequence = sequence;
 /**
- * Produce an array of values from a parser run a specific number of times
+ * Produce an array of values from a parser run a specific number of times.
  *
  * @param num the number of times to run the parser
  * @param parser the parser to repeat
@@ -180,7 +180,6 @@ exports.count = count;
  * Produce an array of values obtained from a value parser which are each separated by a separator parser.
  *
  * The value parser must match at least once.
-
  *
  * @param sepParser a parser producing ignored separation values
  * @param valParser a parser producing values desired
@@ -217,7 +216,7 @@ exports.sepBy1 = sepBy1;
 /**
  * Produce an array of values obtained from a value parser which are each separated by a separator parser.
  *
- * The value parser may not match at all
+ * The value parser may not match at all.
  *
  * @param sepParser a parser producing ignored separation values
  * @param valParser a parser producing values desired
@@ -298,7 +297,8 @@ function until(terminator) {
 }
 exports.until = until;
 /**
- * Produce the string input between the start and end parsers
+ * Produce the string input between the start and end parsers.
+ *
  * @param start A parser consuming a start token
  * @param end A parser consuming an end token
  */
@@ -322,4 +322,20 @@ function between(start, end) {
     });
 }
 exports.between = between;
+/**
+ * Produce a value transformed by a provided function.
+ *
+ * @param parser the parser to wrap
+ * @param fn function to transform the value produced by the parsed
+ */
+function map(parser, fn) {
+    return function (state) {
+        var result = parser(state);
+        return {
+            state: result.state,
+            value: fn(result.value)
+        };
+    };
+}
+exports.map = map;
 //# sourceMappingURL=ParserCombinators.js.map

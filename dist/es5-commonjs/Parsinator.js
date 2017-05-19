@@ -22,6 +22,7 @@ exports.sepBy1 = ParserCombinators_1.sepBy1;
 exports.peek = ParserCombinators_1.peek;
 exports.until = ParserCombinators_1.until;
 exports.between = ParserCombinators_1.between;
+exports.map = ParserCombinators_1.map;
 var ParserTypes_1 = require("./lib/ParserTypes");
 exports.ParseError = ParserTypes_1.ParseError;
 //# sourceMappingURL=Parsinator.js.map
