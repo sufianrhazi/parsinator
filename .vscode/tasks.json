@@ -13,6 +13,15 @@
             "problemMatcher": "$tsc"
         },
         {
+            "taskName": "dist",
+            "command": "s/dist",
+            "args": [],
+            "isShellCommand": true,
+            "isBuildCommand": false,
+            "showOutput": "silent",
+            "problemMatcher": "$tsc"
+        },
+        {
             "taskName": "clean",
             "command": "s/clean",
             "args": [],

@@ -1,0 +1,10 @@
+#!/usr/bin/env node
+
+var amdclean = require('amdclean');
+var fs = require('fs');
+var contents = fs.readFileSync(process.argv[2], { encoding: 'utf-8' });
+var cleaned = amdclean.clean({
+    code: contents,
+    globalModules: ['Parsinator'],
+});
+fs.writeFileSync(process.argv[3], cleaned, { encoding: 'utf-8' });

@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="en-US">
+    <head>
+        <meta charset="utf-8">
+        <title>Neato</title>
+    </head>
+    <body>
+        <script src="dist/es5-bundle/parsinator-standalone.min.js"></script>
+        <script>
+var greeting = Parsinator.fromGenerator(function *() {
+    yield Parsinator.str("Hello, ");
+    var who = yield Parsinator.until(Parsinator.str("!"));
+    yield Parsinator.str("!");
+    yield Parsinator.end
+    return who;
+});
+document.body.innerText = "Hello, world! -> " + Parsinator.run(greeting, "Hello, world!");
+        </script>
+    </body>
+</html>

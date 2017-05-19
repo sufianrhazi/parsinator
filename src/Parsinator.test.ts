@@ -1,4 +1,4 @@
-import * as Parser from "./ParserCombinator";
+import * as Parser from "./Parsinator";
 import { assert } from "chai";
 
 suite("str", function () {

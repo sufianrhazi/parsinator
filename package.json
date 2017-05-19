@@ -2,13 +2,26 @@
   "name": "@srhazi/parsinator",
   "version": "0.0.1",
   "description": "A parser combinator library for javascript and typescript",
-  "keywords": ["parser", "parser combinator", "parsec", "attoparsec"],
+  "keywords": [
+    "parser",
+    "parser combinator",
+    "parsec",
+    "attoparsec"
+  ],
   "homepage": "https://abstract.properties/project/parsinator",
-  "main": "build/parsinator.js",
-  "type": "build/parsinator.d.ts",
+  "main": "dist/parsinator.js",
+  "type": "dist/parsinator.d.ts",
   "scripts": {
     "test": "s/test"
   },
   "author": "Sufian Rhazi <sufian@gmail.com> (https://abstract.properties)",
-  "license": "MIT"
+  "license": "MIT",
+  "devDependencies": {
+    "@types/chai": "^3.5.2",
+    "@types/mocha": "^2.2.41",
+    "amdclean": "^2.7.0",
+    "chai": "3.5.0",
+    "mocha": "3.4.1",
+    "typescript": "2.3.2"
+  }
 }
