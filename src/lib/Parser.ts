@@ -81,12 +81,23 @@ export function fromGenerator<P,V>(generator: () => Iterator<Parser<P>|V>): Pars
     };
 }
 
+/**
+ * Return a parser which always fails with a specific error message.
+ * 
+ * @param message the message to fail with
+ */
 export function fail<T>(message: string): Parser<T> {
     return (state: ParseState) => {
         throw resultFailure(message, state, ParseErrorDetail);
     };
 }
 
+/**
+ * Return a parser which when the wrapped parser fails, provides an alternate error message.
+ * 
+ * @param parser a parser whose error message is inadequate
+ * @param wrapper a function to add more information to an error message
+ */
 export function wrapFail<T>(parser: Parser<T>, wrapper: (message: string) => string) {
     return (state: ParseState) => {
         try {
