@@ -223,6 +223,18 @@ suite("map", function () {
     });
 });
 
+suite("failure customization", function () {
+    test('force failure', function () {
+        var parser = Parser.sequence([ Parser.str("Almost"), Parser.fail("Something descriptive") ]);
+        assert.throws(() => Parser.run(parser, "Almost There"), "Parse failure at 1:7: Something descriptive");
+    });
+
+    test('wrap failure message', function () {
+        var parser = Parser.sequence([ Parser.str("A number: "), Parser.wrapFail(Parser.regex(/[0-9]/), (msg: string) => "Number expected; " + msg) ]);
+        assert.throws(() => Parser.run(parser, "A number: hi"), "Parse failure at 1:11: Number expected; regex /[0-9]/ doesn't match");
+    });
+});
+
 suite("Documentation", function () {
     test("homepage email string", function () {
         const emailParser = Parser.between(Parser.str("<"), Parser.str(">"));

@@ -81,6 +81,24 @@ export function fromGenerator<P,V>(generator: () => Iterator<Parser<P>|V>): Pars
     };
 }
 
+export function fail<T>(message: string): Parser<T> {
+    return (state: ParseState) => {
+        throw resultFailure(message, state, ParseErrorDetail);
+    };
+}
+
+export function wrapFail<T>(parser: Parser<T>, wrapper: (message: string) => string) {
+    return (state: ParseState) => {
+        try {
+            return parser(state);
+        } catch (e) {
+            var index = e.message.indexOf(': ') + 2;
+            e.message = e.message.slice(0, index) + wrapper(e.message.slice(index));
+            throw e;
+        }
+    }
+}
+
 /**
  * Produce nothing and consume nothing, just log the parser state to a log
  * 

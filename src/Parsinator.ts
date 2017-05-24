@@ -5,6 +5,8 @@ export {
     regex,
     regexMatch,
     end,
+    fail,
+    wrapFail,
     debugTrace,
     run,
     runToEnd,
