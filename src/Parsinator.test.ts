@@ -105,6 +105,22 @@ suite("sequence", function () {
 
     test("miss", function () {
         assert.throws(() => Parser.run(parser, "foobarbar"), /Parse failure at 1:10: "baz" not found/);
+        assert.throws(() => Parser.run(Parser.sequence<string|string[]>([
+            Parser.str("\n"),
+            Parser.str("foo"),
+            Parser.many(Parser.str("bar")),
+            Parser.str("baz")
+        ]), "\nfoobarbar"), /Parse failure at 2:10: "baz" not found/);
+    });
+
+    test('miss contains line and col info', function () {
+        try {
+            Parser.run(Parser.sequence<string|(string|string[])[]>([Parser.str("\n\n"), parser]), "\n\nfoobarbar");
+        } catch (e) {
+            assert.equal(3, e.line);
+            assert.equal(10, e.col);
+            assert.equal(11, e.offset);
+        }
     });
 });
 
