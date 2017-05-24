@@ -26,7 +26,7 @@ declare module "lib/ParserHelpers" {
     export function resultFailure<T>(msg: string, state: ParseState, ErrorConstructor: new (msg: string, line: number, col: number, state: ParseState) => T): T;
 }
 declare module "lib/Parser" {
-    import { Parser } from "lib/ParserTypes";
+    import { Parser, ParseState, ParseResult } from "lib/ParserTypes";
     /**
      * Produce the full string match from a regular expression.
      *
@@ -59,6 +59,19 @@ declare module "lib/Parser" {
      * @return A parser producing the returned value
      */
     export function fromGenerator<P, V>(generator: () => Iterator<Parser<P> | V>): Parser<V>;
+    /**
+     * Return a parser which always fails with a specific error message.
+     *
+     * @param message the message to fail with
+     */
+    export function fail<T>(message: string): Parser<T>;
+    /**
+     * Return a parser which when the wrapped parser fails, provides an alternate error message.
+     *
+     * @param parser a parser whose error message is inadequate
+     * @param wrapper a function to add more information to an error message
+     */
+    export function wrapFail<T>(parser: Parser<T>, wrapper: (message: string) => string): (state: ParseState) => ParseResult<T>;
     /**
      * Produce nothing and consume nothing, just log the parser state to a log
      *
@@ -185,10 +198,65 @@ declare module "lib/ParserCombinators" {
      * @param fn function to transform the value produced by the parsed
      */
     export function map<V, W>(parser: Parser<V>, fn: (val: V) => W): Parser<W>;
+    /**
+     * Produce a value obtained after a prefix parser and before a suffix parser
+     *
+     * @param left a prefix parser that the produced value is ignored
+     * @param val the parser whose produced value is desired
+     * @param right a suffix parser that the produced value is ignored
+     */
+    export function surround<L, T, R>(left: Parser<L>, val: Parser<T>, right: Parser<R>): Parser<T>;
+    export type OperatorActionUnary<T> = (val: T) => T;
+    export interface OperatorDeclUnary<T> {
+        parser: Parser<OperatorActionUnary<T>>;
+        fixity: "prefix" | "postfix";
+    }
+    export type OperatorActionBinary<T> = (left: T, right: T) => T;
+    export interface OperatorDeclBinary<T> {
+        parser: Parser<OperatorActionBinary<T>>;
+        fixity: "infix";
+        associativity: "left" | "right";
+    }
+    export type OperatorDecl<T> = OperatorDeclUnary<T> | OperatorDeclBinary<T>;
+    export type OperatorDecls<T> = OperatorDecl<T>[];
+    /**
+     * Build a parser which parses and produces arbitrary binary and unary expressions.
+     *
+     * buildExpressionParser deals with the heavy lifting of dealing with operator fixity, precedence, and associativity.
+     *
+     * As an example, here's a very simple arithmetic parser:
+     *
+     *     var number = Parser.map(Parser.regex(/[0-9]+/), (str) => parseInt(str, 10));
+     *
+     *     var operator = (opstr, action) => Parser.map(Parser.str(opstr), () => action);
+     *
+     *     var negate = operator('-', (val) => -val);
+     *     var sum = operator('+', (x, y) => x + y);
+     *     var multiply = operator('*', (x, y) => x * y);
+     *     var exponent = operator('^', (x, y) => Math.pow(x, y));
+     *
+     *     var evaluate = Parser.buildExpressionParser([
+     *         { fixity: "prefix", parser: negate },
+     *         { fixity: "infix", associativity: "right", parser: exponent },
+     *         { fixity: "infix", associativity: "left", parser: multiply },
+     *         { fixity: "infix", associativity: "left", parser: sum }
+     *     ], () => Parser.choice([
+     *         Parser.surround(Parser.str("("), evaluate, Parser.str(")")),
+     *         number
+     *     ]));
+     *
+     *     Parser.runToEnd(evaluate, "1+2*3+1"); // evaluates to 8
+     *     Parser.runToEnd(evaluate, "(1+2)*-(3+1)"); // evaluates to -12
+     *     Parser.runToEnd(evaluate, "3^3^3"); // evaluates to 7625597484987
+     *
+     * @param operators A an array of `OperatorDecl` objects, in precedence order from highest precedence to lowest precedence
+     * @param parseTermFactory A factory method that returns a parser which produces the individual terms of an expression; this itself may reference the returned parser, so it can be used to implement parenthetical sub-expressions
+     */
+    export function buildExpressionParser<T>(operators: OperatorDecls<T>, parseTermFactory: () => Parser<T>): Parser<T>;
 }
 declare module "Parsinator" {
     export const VERSION = "1.0.0";
-    export { str, regex, regexMatch, end, debugTrace, run, runToEnd, fromGenerator } from "lib/Parser";
-    export { maybe, many, many1, choice, sequence, count, sepBy, sepBy1, peek, until, between, map } from "lib/ParserCombinators";
+    export { str, regex, regexMatch, end, fail, wrapFail, debugTrace, run, runToEnd, fromGenerator } from "lib/Parser";
+    export { maybe, many, many1, choice, sequence, count, sepBy, sepBy1, peek, until, between, map, surround, OperatorActionUnary, OperatorActionBinary, OperatorDeclBinary, OperatorDeclUnary, OperatorDecl, OperatorDecls, buildExpressionParser } from "lib/ParserCombinators";
     export { Parser, ParseError, ParseState, ParseResult } from "lib/ParserTypes";
 }

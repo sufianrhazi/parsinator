@@ -1,4 +1,4 @@
-import { Parser } from './ParserTypes';
+import { Parser, ParseState, ParseResult } from './ParserTypes';
 /**
  * Produce the full string match from a regular expression.
  *
@@ -31,6 +31,19 @@ export declare function str(string: string): Parser<typeof string>;
  * @return A parser producing the returned value
  */
 export declare function fromGenerator<P, V>(generator: () => Iterator<Parser<P> | V>): Parser<V>;
+/**
+ * Return a parser which always fails with a specific error message.
+ *
+ * @param message the message to fail with
+ */
+export declare function fail<T>(message: string): Parser<T>;
+/**
+ * Return a parser which when the wrapped parser fails, provides an alternate error message.
+ *
+ * @param parser a parser whose error message is inadequate
+ * @param wrapper a function to add more information to an error message
+ */
+export declare function wrapFail<T>(parser: Parser<T>, wrapper: (message: string) => string): (state: ParseState) => ParseResult<T>;
 /**
  * Produce nothing and consume nothing, just log the parser state to a log
  *

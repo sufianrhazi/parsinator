@@ -338,4 +338,186 @@ function map(parser, fn) {
     };
 }
 exports.map = map;
+/**
+ * Produce a value obtained after a prefix parser and before a suffix parser
+ *
+ * @param left a prefix parser that the produced value is ignored
+ * @param val the parser whose produced value is desired
+ * @param right a suffix parser that the produced value is ignored
+ */
+function surround(left, val, right) {
+    return Parser_1.fromGenerator(function () {
+        var v;
+        return __generator(this, function (_a) {
+            switch (_a.label) {
+                case 0: return [4 /*yield*/, left];
+                case 1:
+                    _a.sent();
+                    return [4 /*yield*/, val];
+                case 2:
+                    v = _a.sent();
+                    return [4 /*yield*/, right];
+                case 3:
+                    _a.sent();
+                    return [2 /*return*/, v];
+            }
+        });
+    });
+}
+exports.surround = surround;
+/**
+ * Build a parser which parses and produces arbitrary binary and unary expressions.
+ *
+ * buildExpressionParser deals with the heavy lifting of dealing with operator fixity, precedence, and associativity.
+ *
+ * As an example, here's a very simple arithmetic parser:
+ *
+ *     var number = Parser.map(Parser.regex(/[0-9]+/), (str) => parseInt(str, 10));
+ *
+ *     var operator = (opstr, action) => Parser.map(Parser.str(opstr), () => action);
+ *
+ *     var negate = operator('-', (val) => -val);
+ *     var sum = operator('+', (x, y) => x + y);
+ *     var multiply = operator('*', (x, y) => x * y);
+ *     var exponent = operator('^', (x, y) => Math.pow(x, y));
+ *
+ *     var evaluate = Parser.buildExpressionParser([
+ *         { fixity: "prefix", parser: negate },
+ *         { fixity: "infix", associativity: "right", parser: exponent },
+ *         { fixity: "infix", associativity: "left", parser: multiply },
+ *         { fixity: "infix", associativity: "left", parser: sum }
+ *     ], () => Parser.choice([
+ *         Parser.surround(Parser.str("("), evaluate, Parser.str(")")),
+ *         number
+ *     ]));
+ *
+ *     Parser.runToEnd(evaluate, "1+2*3+1"); // evaluates to 8
+ *     Parser.runToEnd(evaluate, "(1+2)*-(3+1)"); // evaluates to -12
+ *     Parser.runToEnd(evaluate, "3^3^3"); // evaluates to 7625597484987
+ *
+ * @param operators A an array of `OperatorDecl` objects, in precedence order from highest precedence to lowest precedence
+ * @param parseTermFactory A factory method that returns a parser which produces the individual terms of an expression; this itself may reference the returned parser, so it can be used to implement parenthetical sub-expressions
+ */
+function buildExpressionParser(operators, parseTermFactory) {
+    var parseTerm = null;
+    var preOps = [];
+    var postOps = [];
+    var binOps = [];
+    for (var i = 0; i < operators.length; ++i) {
+        var precedence = operators.length - i;
+        var operator = operators[i];
+        switch (operator.fixity) {
+            case "infix":
+                binOps.push({ precedence: precedence, associativity: operator.associativity, parser: operator.parser });
+                break;
+            case "postfix":
+                postOps.push(operator.parser);
+                break;
+            case "prefix":
+                preOps.push(operator.parser);
+                break;
+        }
+    }
+    var parseExprTerm = Parser_1.fromGenerator(function () {
+        var preFuncs, postFuncs, f, result, _i, preFuncs_1, f_1, _a, postFuncs_1, f_2;
+        return __generator(this, function (_b) {
+            switch (_b.label) {
+                case 0:
+                    preFuncs = [];
+                    postFuncs = [];
+                    f = null;
+                    _b.label = 1;
+                case 1: return [4 /*yield*/, maybe(choice(preOps))];
+                case 2:
+                    f = _b.sent();
+                    if (f !== null) {
+                        preFuncs.push(f);
+                    }
+                    _b.label = 3;
+                case 3:
+                    if (f !== null) return [3 /*break*/, 1];
+                    _b.label = 4;
+                case 4:
+                    if (parseTerm === null) {
+                        parseTerm = parseTermFactory();
+                    }
+                    return [4 /*yield*/, parseTerm];
+                case 5:
+                    result = _b.sent();
+                    _b.label = 6;
+                case 6: return [4 /*yield*/, maybe(choice(postOps))];
+                case 7:
+                    f = _b.sent();
+                    if (f !== null) {
+                        postFuncs.push(f);
+                    }
+                    _b.label = 8;
+                case 8:
+                    if (f !== null) return [3 /*break*/, 6];
+                    _b.label = 9;
+                case 9:
+                    for (_i = 0, preFuncs_1 = preFuncs; _i < preFuncs_1.length; _i++) {
+                        f_1 = preFuncs_1[_i];
+                        result = f_1(result);
+                    }
+                    for (_a = 0, postFuncs_1 = postFuncs; _a < postFuncs_1.length; _a++) {
+                        f_2 = postFuncs_1[_a];
+                        result = f_2(result);
+                    }
+                    return [2 /*return*/, result];
+            }
+        });
+    });
+    // This uses the precedence climbing/TDOP algorithm
+    // See http://eli.thegreenplace.net/2012/08/02/parsing-expressions-by-precedence-climbing
+    function parseExpressionPrecedence(minPrec) {
+        return Parser_1.fromGenerator(function () {
+            var left, action, associativity, precedence, i, op, nextMinPrec, right;
+            return __generator(this, function (_a) {
+                switch (_a.label) {
+                    case 0: return [4 /*yield*/, parseExprTerm];
+                    case 1:
+                        left = _a.sent();
+                        _a.label = 2;
+                    case 2:
+                        if (!true) return [3 /*break*/, 8];
+                        action = null;
+                        i = 0;
+                        _a.label = 3;
+                    case 3:
+                        if (!(i < binOps.length && action === null)) return [3 /*break*/, 6];
+                        op = binOps[i];
+                        if (!(op.precedence >= minPrec)) return [3 /*break*/, 5];
+                        return [4 /*yield*/, maybe(op.parser)];
+                    case 4:
+                        action = _a.sent();
+                        associativity = op.associativity;
+                        precedence = op.precedence;
+                        _a.label = 5;
+                    case 5:
+                        ++i;
+                        return [3 /*break*/, 3];
+                    case 6:
+                        if (action === null) {
+                            return [2 /*return*/, left];
+                        }
+                        if (associativity === 'left') {
+                            nextMinPrec = precedence + 1;
+                        }
+                        else {
+                            nextMinPrec = precedence;
+                        }
+                        return [4 /*yield*/, parseExpressionPrecedence(nextMinPrec)];
+                    case 7:
+                        right = _a.sent();
+                        left = action(left, right);
+                        return [3 /*break*/, 2];
+                    case 8: return [2 /*return*/];
+                }
+            });
+        });
+    }
+    return parseExpressionPrecedence(0);
+}
+exports.buildExpressionParser = buildExpressionParser;
 //# sourceMappingURL=ParserCombinators.js.map

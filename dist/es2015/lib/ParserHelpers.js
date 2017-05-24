@@ -31,7 +31,7 @@ export function resultFailure(msg, state, ErrorConstructor) {
     for (var i = 0; i < state.offset; ++i) {
         if (state.input[i] === '\n') {
             lines++;
-            lastLineStart = i;
+            lastLineStart = i + 1;
         }
     }
     var line = 1 + lines;

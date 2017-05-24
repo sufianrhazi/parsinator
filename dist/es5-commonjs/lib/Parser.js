@@ -84,6 +84,36 @@ function fromGenerator(generator) {
 }
 exports.fromGenerator = fromGenerator;
 /**
+ * Return a parser which always fails with a specific error message.
+ *
+ * @param message the message to fail with
+ */
+function fail(message) {
+    return function (state) {
+        throw ParserHelpers_1.resultFailure(message, state, ParserHelpers_1.ParseErrorDetail);
+    };
+}
+exports.fail = fail;
+/**
+ * Return a parser which when the wrapped parser fails, provides an alternate error message.
+ *
+ * @param parser a parser whose error message is inadequate
+ * @param wrapper a function to add more information to an error message
+ */
+function wrapFail(parser, wrapper) {
+    return function (state) {
+        try {
+            return parser(state);
+        }
+        catch (e) {
+            var index = e.message.indexOf(': ') + 2;
+            e.message = e.message.slice(0, index) + wrapper(e.message.slice(index));
+            throw e;
+        }
+    };
+}
+exports.wrapFail = wrapFail;
+/**
  * Produce nothing and consume nothing, just log the parser state to a log
  *
  * @param log A logging function
