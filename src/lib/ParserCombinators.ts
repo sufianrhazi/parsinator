@@ -224,3 +224,19 @@ export function map<V,W>(parser: Parser<V>, fn: (val: V) => W): Parser<W> {
         };
     };
 }
+
+/**
+ * Produce a value obtained after a prefix parser and before a suffix parser
+ * 
+ * @param left a prefix parser that the produced value is ignored
+ * @param val the parser whose produced value is desired
+ * @param right a suffix parser that the produced value is ignored
+ */
+export function surround<L,T,R>(left: Parser<L>, val: Parser<T>, right: Parser<R>): Parser<T> {
+    return fromGenerator<L|T|R,T>(function *() {
+        yield left;
+        var v: T = yield val;
+        yield right;
+        return v;
+    });
+}

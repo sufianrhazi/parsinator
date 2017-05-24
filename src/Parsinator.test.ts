@@ -235,6 +235,26 @@ suite("failure customization", function () {
     });
 });
 
+suite('surround', function () {
+    var whitespace = Parser.regex(/\s*/);
+    var token = (parser: Parser.Parser<any>) => Parser.surround(whitespace, parser, whitespace);
+    var comma = token(Parser.str(','));
+    var chars = Parser.regex(/[a-zA-Z]+/);
+    var listOfWords = Parser.surround(token(Parser.str("(")), Parser.sepBy(comma, chars), token(Parser.str(")")));
+    
+    test('can be used in combination with sepBy to parse a list of words', function () {
+        assert.deepEqual([], Parser.run(listOfWords, "()"));
+        assert.deepEqual(["foo"], Parser.run(listOfWords, "(foo)"));
+        assert.deepEqual(["foo", "bar", "baz", "bum", "but"], Parser.run(listOfWords, "   (foo, bar    ,   baz,bum,but    )   "));
+    });
+
+    test('handles failures', function () {
+        assert.throws(() => Parser.run(listOfWords, ""), 'Parse failure at 1:1: "(" not found');
+        assert.throws(() => Parser.run(listOfWords, "("), 'Parse failure at 1:2: ")" not found');
+        assert.throws(() => Parser.run(listOfWords, " ( foo , bar,baz  "), 'Parse failure at 1:19: ")" not found');
+    });
+});
+
 suite("Documentation", function () {
     test("homepage email string", function () {
         const emailParser = Parser.between(Parser.str("<"), Parser.str(">"));

@@ -26,6 +26,7 @@ export {
     until,
     between,
     map,
+    surround,
 } from './lib/ParserCombinators';
 
 export {
