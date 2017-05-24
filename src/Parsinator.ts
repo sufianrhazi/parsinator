@@ -27,6 +27,13 @@ export {
     between,
     map,
     surround,
+    OperatorActionUnary,
+    OperatorActionBinary,
+    OperatorDeclBinary,
+    OperatorDeclUnary,
+    OperatorDecl,
+    OperatorDecls,
+    buildExpressionParser,
 } from './lib/ParserCombinators';
 
 export {

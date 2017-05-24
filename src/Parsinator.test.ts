@@ -255,6 +255,84 @@ suite('surround', function () {
     });
 });
 
+suite('buildExpressionParser can build a simple arithmetic parser', function () {
+    var whitespace = Parser.regex(/\s*/);
+    var token = (parser: Parser.Parser<any>): typeof parser => Parser.surround(whitespace, parser, whitespace);
+    var operator = (op: string, opFunc: any): Parser.Parser<typeof opFunc> => Parser.map<string,typeof opFunc>(token(Parser.str(op)), () => opFunc);
+
+    var number = Parser.map(Parser.regex(/[0-9]+/), (str) => parseInt(str));
+    var negate: Parser.Parser<Parser.OperatorActionUnary<number>> = operator('-', (val: number) => -val);
+    var factorial: Parser.Parser<Parser.OperatorActionUnary<number>> = operator('!', (val: number) => {
+        if (val < 0) {
+            throw new Error("Cannot evaluate negative factorial");
+        }
+        var result = 1;
+        for (; val > 0; --val) {
+            result *= val;
+        }
+        return result;
+    });
+    var sum: Parser.Parser<Parser.OperatorActionBinary<number>> = operator('+', (left: number, right: number) => left + right);
+    var subtract: Parser.Parser<Parser.OperatorActionBinary<number>> = operator('-', (left: number, right: number) => left - right);
+    var multiply: Parser.Parser<Parser.OperatorActionBinary<number>> = operator('*', (left: number, right: number) => left * right);
+    var divide: Parser.Parser<Parser.OperatorActionBinary<number>> = operator('/', (left: number, right: number) => left / right);
+    var exponent: Parser.Parser<Parser.OperatorActionBinary<number>> = operator('^', (left: number, right: number) => Math.pow(left, right));
+
+    var evaluate: Parser.Parser<number> = Parser.buildExpressionParser<number>([
+        { fixity: "prefix", parser: negate },
+        { fixity: "postfix", parser: factorial },
+        { fixity: "infix", associativity: "right", parser: exponent },
+        { fixity: "infix", associativity: "left", parser: multiply },
+        { fixity: "infix", associativity: "left", parser: divide },
+        { fixity: "infix", associativity: "left", parser: sum },
+        { fixity: "infix", associativity: "left", parser: subtract },
+    ], () => Parser.choice([
+        Parser.surround(token(Parser.str("(")), evaluate, token(Parser.str(")"))),
+        number
+    ]));
+
+    test('can build a simple arithmetic parser', function () {
+        assert.equal(3, Parser.runToEnd(evaluate, "3"));
+        assert.equal(3, Parser.runToEnd(evaluate, "1 + 2"));
+        assert.equal(-1, Parser.runToEnd(evaluate, "1 - 2"));
+        assert.equal(2, Parser.runToEnd(evaluate, "1 * 2"));
+        assert.equal(1/2, Parser.runToEnd(evaluate, "1 / 2"));
+        assert.equal(9, Parser.runToEnd(evaluate, "3 ^ 2"));
+        assert.equal(-5, Parser.runToEnd(evaluate, "-3 + -2"));
+        assert.equal(5, Parser.runToEnd(evaluate, "--5"));
+        assert.equal(24, Parser.runToEnd(evaluate, "4!"));
+        assert.equal(720, Parser.runToEnd(evaluate, "3!!"));
+        assert.equal(30, Parser.runToEnd(evaluate, "4! + 3!"));
+    });
+
+    test('order of operations', function () {
+        assert.equal(8, Parser.runToEnd(evaluate, "1 + 2 * 3 + 1"));
+        assert.equal(12, Parser.runToEnd(evaluate, "(1 + 2) * (3 + 1)"));
+    });
+
+    test('right associtivity', function () {
+        assert.equal(7625597484987, Parser.runToEnd(evaluate, "3 ^ 3 ^ 3"));
+        assert.equal(19683, Parser.runToEnd(evaluate, "(3 ^ 3) ^ 3"));
+        assert.equal(7625597484987, Parser.runToEnd(evaluate, "3 ^ (3 ^ 3)"));
+    });
+
+    test('left associvity', function () {
+        assert.equal(1, Parser.runToEnd(evaluate, "8 / 4 / 2"));
+        assert.equal(1, Parser.runToEnd(evaluate, "(8 / 4) / 2"));
+        assert.equal(4, Parser.runToEnd(evaluate, "8 / (4 / 2)"));
+    });
+
+    test('complex operation', function () {
+        assert.equal(120, Parser.runToEnd(evaluate, "(1 ^ 100 + 2 * 3 / 2 - -1)!"));
+    });
+
+    test('failure modes', function () {
+        assert.throws(() => Parser.runToEnd(evaluate, "("), 'Parse failure at 1:2: "(" not found');
+        assert.throws(() => Parser.runToEnd(evaluate, "(3"), 'Parse failure at 1:3: ")" not found');
+        assert.throws(() => Parser.runToEnd(evaluate, "5 + "), 'Parse failure at 1:5: regex /[0-9]+/ doesn\'t match');
+    });
+});
+
 suite("Documentation", function () {
     test("homepage email string", function () {
         const emailParser = Parser.between(Parser.str("<"), Parser.str(">"));
@@ -343,5 +421,30 @@ suite("Documentation", function () {
 
         assert.strictEqual(579, Parser.run(parseSum, "123+456"));
         assert.throws(() => Parser.run(parseSum, "23.5+92"), 'Parse failure at 1:3: "+" not found');
+    });
+
+    test('expression docstr', function () {
+        var number = Parser.map(Parser.regex(/[0-9]+/), (str) => parseInt(str, 10));
+
+        var operator = (opstr: string, action: any) => Parser.map(Parser.str(opstr), () => action);
+
+        var negate = operator('-', (val: number) => -val);
+        var sum = operator('+', (x: number, y: number) => x + y);
+        var multiply = operator('*', (x: number, y: number) => x * y);
+        var exponent = operator('^', (x: number, y: number) => Math.pow(x, y));
+
+        var evaluate: Parser.Parser<number> = Parser.buildExpressionParser([
+            { fixity: "prefix", parser: negate },
+            { fixity: "infix", associativity: "right", parser: exponent },
+            { fixity: "infix", associativity: "left", parser: multiply },
+            { fixity: "infix", associativity: "left", parser: sum }
+        ], () => Parser.choice([
+            Parser.surround(Parser.str("("), evaluate, Parser.str(")")),
+            number
+        ]));
+
+        assert.equal(8, Parser.runToEnd(evaluate, "1+2*3+1")); // evaluates to 8
+        assert.equal(-12, Parser.runToEnd(evaluate, "(1+2)*-(3+1)"));
+        assert.equal(7625597484987, Parser.runToEnd(evaluate, "3^3^3"));
     });
 });
