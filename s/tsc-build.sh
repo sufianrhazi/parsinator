@@ -1,4 +1,4 @@
 #!/usr/bin/env bash
 set -e
 cd "$(dirname "$0")/.."
-exec tsc -p .
+exec node_modules/.bin/tsc -p .

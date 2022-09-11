@@ -27,9 +27,9 @@ var parseNaturalNumber: Parser.Parser<number> = Parser.map<string,number>(
 );
 
 var parseSum: Parser.Parser<number> = Parser.fromGenerator(function *() {
-    var left = yield parseNaturalNumber;
-    yield Parser.str("+");
-    var right = yield parseNaturalNumber;
+    var left = yield* parseNaturalNumber;
+    yield* Parser.str("+");
+    var right = yield* parseNaturalNumber;
     return left + right;
 });
 
@@ -51,9 +51,9 @@ var parseNaturalNumber = Parser.map(
 );
 
 var parseSum = Parser.fromGenerator(function *() {
-    var left = yield parseNaturalNumber;
-    yield Parser.str("+");
-    var right = yield parseNaturalNumber;
+    var left = yield* parseNaturalNumber;
+    yield* Parser.str("+");
+    var right = yield* parseNaturalNumber;
     return left + right;
 });
 
@@ -64,32 +64,19 @@ Parser.run(parseSum, "23.5+92"); // throws error:
 //       ^
 ```
 
-### JavaScript (ES5+commonjs)
+### JavaScript (ES5)
 
-Unfortunately, generator functions aren't in ES5, so you lose the monadic
-interface and must rely on a more manual approach.
+Version 2 does not support ES5.
 
-```js
-var Parser = require('parsinator');
 
-var parseNaturalNumber = Parser.map(
-    Parser.regex(/[1-9][0-9]*|0/),
-    function (str) {
-        return parseInt(str, 10);
-    }
-);
+## Upgrading from Version 1 to Version 2
 
-var parseSum = Parser.map(Parser.sequence([
-    parseNaturalNumber,
-    Parser.str("+"),
-    parseNaturalNumber
-]), function (items) {
-    return items[0] + items[2];
-});
+Version 2 uses TypeScript features only available in version 3.6, in order to allow for correct typing of generators.
+This required an API change and a language runtime that supports the `yield*` keyword.
 
-Parser.run(parseSum, "123+456"); // -> 579
-Parser.run(parseSum, "23.5+92"); // throws error:
-// Error: Parse failure at 1:3: "+" not found
-// -> "23.5+92"
-//       ^
-```
+To upgrade, change all your `fromGenerator` calls that contain `yield` so that they are `yield*`.
+
+If you wrote custom parsers which take and return state, you must use generators now.
+* `yield 0` retrieves the current state
+* `yield number` increments the offset by number
+* `yield state` sets the state to the new state

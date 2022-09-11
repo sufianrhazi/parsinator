@@ -28,7 +28,8 @@ suite("regex", function () {
 suite("regexMatch", function () {
     var parser = Parser.regexMatch(/Hello, (.*)! ([0-9]+)/);
     test("hit", function () {
-        assert.deepEqual(["Hello, world! 123", "world", "123"], Parser.run(parser, "Hello, world! 123"));
+        assert.deepEqual(["Hello, world! 123", "world", "123"], Parser.runToEnd(parser, "Hello, world! 123"));
+        assert.deepEqual([["Hello, world! 123", "world", "123"], 'end'], Parser.runToEnd(Parser.sequence<string | string[]>([parser, Parser.str('end')]), "Hello, world! 123end"));
     });
 
     test("miss", function () {
@@ -36,6 +37,25 @@ suite("regexMatch", function () {
         assert.throws(() => Parser.run(parser, "Goodbye, world!"), /Parse failure at 1:1: regex \/Hello, \(\.\*\)! \(\[0-9\]\+\)\/ doesn't match/);
     });
 })
+
+suite("fromGenerator", function () {
+    var parseDivisionExpression = Parser.fromGenerator(function *() {
+        const numStr = yield* Parser.regex(/[0-9]+\.[0-9]+/);
+        var numerator = parseFloat(numStr);
+        yield* Parser.regex(/\s*/);
+        yield* Parser.str("/");
+        yield* Parser.regex(/\s*/);
+        const denomStr = yield* Parser.regex(/[0-9]+\.[0-9]+/);
+        var denominator = parseFloat(denomStr);
+        return numerator / denominator;
+    });
+
+    test("can be used to parse a complex expression", function () {
+        assert.equal(3.0 / 5.0, Parser.run(parseDivisionExpression, "3.0 / 5.0"));
+        assert.equal(42.0 / 21.0, Parser.run(parseDivisionExpression, "42.0/21.0"));
+        assert.equal(3.0 / 5.0, Parser.run(parseDivisionExpression, "3.0     /       5.0"));
+    });
+});
 
 suite("maybe", function () {
     var parser = Parser.maybe(Parser.str("Hit"));
@@ -91,10 +111,10 @@ suite("choice", function () {
 })
 
 suite("sequence", function () {
-    var parser = Parser.sequence<string | string[]>([
+    var parser = Parser.sequence<any | string | string[]>([
         Parser.str("foo"),
         Parser.many(Parser.str("bar")),
-        Parser.str("baz")
+        Parser.str("baz"),
     ]);
 
     test("hit", function () {
@@ -198,23 +218,6 @@ suite("sepBy1", function () {
     });
 });
 
-suite("fromGenerator", function () {
-    var parseDivisionExpression = Parser.fromGenerator<number|string,number>(function *() {
-        var numerator = parseFloat(yield Parser.regex(/[0-9]+\.[0-9]+/));
-        yield Parser.regex(/\s*/);
-        yield Parser.str("/");
-        yield Parser.regex(/\s*/);
-        var denominator = parseFloat(yield Parser.regex(/[0-9]+\.[0-9]+/));
-        return numerator / denominator;
-    });
-
-    test("can be used to parse a complex expression", function () {
-        assert.equal(3.0 / 5.0, Parser.run(parseDivisionExpression, "3.0 / 5.0"));
-        assert.equal(42.0 / 21.0, Parser.run(parseDivisionExpression, "42.0/21.0"));
-        assert.equal(3.0 / 5.0, Parser.run(parseDivisionExpression, "3.0     /       5.0"));
-    });
-});
-
 suite("map", function () {
     test('basic wrapping', function () {
         var parser = Parser.str('hello');
@@ -236,7 +239,7 @@ suite("failure customization", function () {
 });
 
 suite('surround', function () {
-    var whitespace = Parser.regex(/\s*/);
+    var whitespace = Parser.regex(new RegExp('\\s*'));
     var token = (parser: Parser.Parser<any>) => Parser.surround(whitespace, parser, whitespace);
     var comma = token(Parser.str(','));
     var chars = Parser.regex(/[a-zA-Z]+/);
@@ -256,7 +259,7 @@ suite('surround', function () {
 });
 
 suite('buildExpressionParser can build a simple arithmetic parser', function () {
-    var whitespace = Parser.regex(/\s*/);
+    var whitespace = Parser.regex(new RegExp('\\s*'));
     var token = (parser: Parser.Parser<any>): typeof parser => Parser.surround(whitespace, parser, whitespace);
     var operator = (op: string, opFunc: any): Parser.Parser<typeof opFunc> => Parser.map<string,typeof opFunc>(token(Parser.str(op)), () => opFunc);
 
@@ -340,19 +343,19 @@ suite("Documentation", function () {
         const urlParser = Parser.between(Parser.str("("), Parser.str(")"));
 
         const infoParser = Parser.fromGenerator(function *() {
-            const name = yield Parser.until(Parser.choice([
+            const name = yield* Parser.until(Parser.choice([
                 Parser.str("<"),
                 Parser.str("("),
                 Parser.end
             ]));
 
-            const email = yield Parser.maybe(emailParser);
+            const email = yield* Parser.maybe(emailParser);
 
-            yield Parser.regex(/\s*/);
+            yield* Parser.regex(new RegExp('\\s*'));
 
-            const url = yield Parser.maybe(urlParser);
+            const url = yield* Parser.maybe(urlParser);
 
-            yield Parser.end;
+            yield* Parser.end;
 
             return {
                 name: name.trim(),
@@ -393,9 +396,9 @@ suite("Documentation", function () {
         );
 
         var parseSum: Parser.Parser<number> = Parser.fromGenerator(function *() {
-            var left = yield parseNaturalNumber;
-            yield Parser.str("+");
-            var right = yield parseNaturalNumber;
+            var left = yield* parseNaturalNumber;
+            yield* Parser.str("+");
+            var right = yield* parseNaturalNumber;
             return left + right;
         });
 

@@ -1,6 +1,6 @@
 {
   "name": "parsinator",
-  "version": "1.1.0",
+  "version": "2.0.0",
   "description": "A parser combinator library for javascript and typescript",
   "keywords": [
     "parser",
@@ -10,8 +10,8 @@
   ],
   "homepage": "https://abstract.properties/work/parsinator.html",
   "repository": {
-      "type": "git",
-      "url": "https://github.com/sufianrhazi/parsinator.git"
+    "type": "git",
+    "url": "https://github.com/sufianrhazi/parsinator.git"
   },
   "main": "dist/es5-commonjs/Parsinator.js",
   "types": "dist/es5-commonjs/Parsinator.d.ts",
@@ -26,6 +26,7 @@
     "amdclean": "^2.7.0",
     "chai": "3.5.0",
     "mocha": "3.4.1",
-    "typescript": "2.3.2"
+    "typescript": "3.6.5",
+    "prettier": "^2.7.1"
   }
 }
