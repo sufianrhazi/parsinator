@@ -1,15 +1,20 @@
-import { Parser, ParseState, ParseResult, ParseError } from "./ParserTypes";
 import {
-  resultFailure,
-  resultSuccess,
-  ParseErrorDetail,
+  Parser,
+  ParseState,
+  ParseResult,
+  ParseError,
   formatState,
-} from "./ParserHelpers";
+} from "./ParserTypes";
+import { resultFailure, resultSuccess } from "./ParserHelpers";
 
-export function makeParser<P, V>(
-  generator: () => Generator<number | ParseState, V, ParseState>
+export function makeParser<V>(
+  generator: () => Generator<number | ParseState, V, ParseState>,
+  parserName: string
 ): Parser<V> {
-  return Object.assign(() => generator(), { [Symbol.iterator]: generator });
+  return Object.assign(() => generator(), {
+    [Symbol.iterator]: generator,
+    parserName,
+  });
 }
 
 /**
@@ -27,13 +32,12 @@ export function regex(regex: RegExp): Parser<string> {
     if (result === null || result.index !== 0) {
       throw resultFailure(
         `regex /${regex.source}/${regex.flags} doesn't match`,
-        state,
-        ParseErrorDetail
+        state
       );
     }
     yield result[0].length;
     return result[0];
-  });
+  }, `regex:${regex.source}`);
 }
 
 /**
@@ -53,13 +57,12 @@ export function regexMatch(regex: RegExp): Parser<string[]> {
     if (result === null || result.index !== 0) {
       throw resultFailure(
         `regex /${regex.source}/${regex.flags} doesn't match`,
-        state,
-        ParseErrorDetail
+        state
       );
     }
     yield result[0].length;
     return Array.from(result);
-  });
+  }, `regexMatch:${regex.source}`);
 }
 
 /**
@@ -75,9 +78,9 @@ export function str<T extends string>(string: T): Parser<T> {
       yield string.length;
       return string;
     } else {
-      throw resultFailure(`"${string}" not found`, state, ParseErrorDetail);
+      throw resultFailure(`"${string}" not found`, state);
     }
-  });
+  }, `str:${string}`);
 }
 
 /**
@@ -88,8 +91,9 @@ export function str<T extends string>(string: T): Parser<T> {
  * @param generator A generator function which yields Parsers and returns value
  * @return A parser producing the returned value
  */
-export function fromGenerator<P, V>(
-  generator: () => Generator<number | ParseState, V, ParseState>
+export function fromGenerator<V>(
+  generator: () => Generator<number | ParseState, V, ParseState>,
+  parserName?: string
 ): Parser<V> {
   return makeParser(function* () {
     let state: ParseState = yield 0;
@@ -108,7 +112,7 @@ export function fromGenerator<P, V>(
         yield state;
       }
     }
-  });
+  }, parserName || generator.name);
 }
 
 /**
@@ -119,8 +123,8 @@ export function fromGenerator<P, V>(
 export function fail<T>(message: string): Parser<T> {
   return makeParser(function* () {
     const state: ParseState = yield 0;
-    throw resultFailure(message, state, ParseErrorDetail);
-  });
+    throw resultFailure(message, state);
+  }, `fail:${message}`);
 }
 
 /**
@@ -134,25 +138,16 @@ export function wrapFail<T>(
   wrapper: (message: string) => string
 ) {
   return makeParser(function* () {
-    let state: ParseState = yield 0;
-    const iter = parser();
     try {
-      let step = iter.next(state);
-      while (!step.done) {
-        if (typeof step.value === "number") {
-          state = { ...state, offset: state.offset + step.value };
-        } else {
-          state = step.value;
-        }
-        step = iter.next(state);
-      }
-      return step.value;
+      return yield* parser;
     } catch (e) {
-      var index = e.message.indexOf(": ") + 2;
-      e.message = e.message.slice(0, index) + wrapper(e.message.slice(index));
+      if (e instanceof ParseError) {
+        const message = wrapper(e.msg);
+        throw resultFailure(message, { input: e.input, offset: e.offset });
+      }
       throw e;
     }
-  });
+  }, "wrapFail");
 }
 
 /**
@@ -165,7 +160,7 @@ export function debugTrace(log: (str: string) => void): Parser<undefined> {
     const state: ParseState = yield 0;
     log(formatState(state));
     return undefined;
-  });
+  }, "debugTrace");
 }
 
 /**
@@ -176,9 +171,9 @@ export const end: Parser<null> = makeParser(function* () {
   if (state.offset >= state.input.length) {
     return null;
   } else {
-    throw resultFailure("Not at end of string", state, ParseErrorDetail);
+    throw resultFailure("Not at end of string", state);
   }
-});
+}, "end");
 
 function runInner<T>(parser: Parser<T>, state: ParseState): ParseResult<T> {
   const iter = parser();

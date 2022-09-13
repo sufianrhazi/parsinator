@@ -1,10 +1,5 @@
 import { Parser, ParseState, ParseResult, ParseError } from "./ParserTypes";
-import {
-  resultFailure,
-  resultSuccess,
-  ParseErrorDetail,
-  formatState,
-} from "./ParserHelpers";
+import { resultFailure, resultSuccess } from "./ParserHelpers";
 import { fromGenerator } from "./Parser";
 
 /**
@@ -14,7 +9,7 @@ import { fromGenerator } from "./Parser";
  * @return a parser producing the wrapped parser's result or null on failure
  */
 export function maybe<P>(parser: Parser<P>): Parser<P | null> {
-  return fromGenerator(function* () {
+  return fromGenerator(function* maybe() {
     const startState = yield 0;
     try {
       return yield* parser;
@@ -22,7 +17,7 @@ export function maybe<P>(parser: Parser<P>): Parser<P | null> {
       yield startState;
       return null;
     }
-  });
+  }, `maybe(${parser.parserName})`);
 }
 
 /**
@@ -32,7 +27,7 @@ export function maybe<P>(parser: Parser<P>): Parser<P | null> {
  * @return a parser producing an array of parsed values
  */
 export function many<P>(parser: Parser<P>): Parser<P[]> {
-  return fromGenerator(function* () {
+  return fromGenerator(function* many() {
     var results: P[] = [];
     while (true) {
       const state = yield 0;
@@ -44,7 +39,7 @@ export function many<P>(parser: Parser<P>): Parser<P[]> {
       }
       results.push(result);
     }
-  });
+  }, `many(${parser.parserName})`);
 }
 
 /**
@@ -54,11 +49,11 @@ export function many<P>(parser: Parser<P>): Parser<P[]> {
  * @return a parser producing an array of parsed values
  */
 export function many1<P>(parser: Parser<P>): Parser<P[]> {
-  return fromGenerator(function* () {
+  return fromGenerator(function* many1() {
     var one = yield* parser;
     var multiple = yield* many(parser);
     return [one].concat(multiple);
-  });
+  }, `many1(${parser.parserName})`);
 }
 
 /**
@@ -68,24 +63,32 @@ export function many1<P>(parser: Parser<P>): Parser<P[]> {
  * @return a parser producing the first succeeding parser's value
  */
 export function choice<V>(parsers: Parser<V>[]): Parser<V> {
-  return fromGenerator(function* () {
-    var errors: string[] = [];
+  return fromGenerator(function* choice() {
+    var errors: ParseError[] = [];
     const startState = yield 0;
     for (var i = 0; i < parsers.length; ++i) {
       try {
         return yield* parsers[i];
       } catch (e) {
-        errors.push(e.message);
+        if (e instanceof ParseError) {
+          errors.push(e);
+        } else {
+          throw e;
+        }
         yield startState;
       }
     }
     const state = yield 0;
+    yield startState;
+    errors.sort((a, b) => b.offset - a.offset);
     throw resultFailure(
-      "Parse failure; potential matches:\n- " + errors.join("\n- "),
-      state,
-      ParseError
+      "Multiple choices; potential matches:\n- " +
+        errors
+          .map((error) => error.message.split("\n").join("\n  "))
+          .join("\n- "),
+      state
     );
-  });
+  }, `choice(${parsers.map((parser) => parser.parserName).join(",")})`);
 }
 
 /**
@@ -95,14 +98,14 @@ export function choice<V>(parsers: Parser<V>[]): Parser<V> {
  * @return a parser producing an array of parsed values
  */
 export function sequence<V>(parsers: Parser<V>[]): Parser<V[]> {
-  return fromGenerator(function* () {
+  return fromGenerator(function* sequence() {
     var results: V[] = [];
     for (var i = 0; i < parsers.length; ++i) {
       const state = yield 0;
       results.push(yield* parsers[i]);
     }
     return results;
-  });
+  }, `sequence(${parsers.map((parser) => parser.name).join(",")})`);
 }
 
 /**
@@ -113,13 +116,13 @@ export function sequence<V>(parsers: Parser<V>[]): Parser<V[]> {
  * @return a parser producing an array of parsed values
  */
 export function count<V>(num: number, parser: Parser<V>): Parser<V[]> {
-  return fromGenerator(function* () {
+  return fromGenerator(function* count() {
     var results: V[] = [];
     for (var i = 0; i < num; ++i) {
       results.push(yield* parser);
     }
     return results;
-  });
+  }, `count(${num},${parser.parserName})`);
 }
 
 /**
@@ -136,7 +139,7 @@ export function sepBy1<S, V>(
   valParser: Parser<V>
 ): Parser<V[]> {
   var maybeSeparator = maybe(sepParser);
-  return fromGenerator(function* () {
+  return fromGenerator(function* sepBy1() {
     var results: V[] = [];
     while (true) {
       results.push(yield* valParser);
@@ -145,7 +148,7 @@ export function sepBy1<S, V>(
         return results;
       }
     }
-  });
+  }, `sepBy1(${sepParser.parserName},${valParser.parserName})`);
 }
 
 /**
@@ -163,7 +166,7 @@ export function sepBy<S, V>(
 ): Parser<V[]> {
   var maybeSeparator = maybe(sepParser);
   var maybeParser = maybe(valParser);
-  return fromGenerator(function* () {
+  return fromGenerator(function* sepBy() {
     var results: V[] = [];
     var first = yield* maybeParser;
     if (first === null) {
@@ -178,7 +181,7 @@ export function sepBy<S, V>(
       }
       results.push(yield* valParser);
     }
-  });
+  }, `sepBy(${sepParser.parserName},${valParser.parserName})`);
 }
 
 /**
@@ -188,7 +191,7 @@ export function sepBy<S, V>(
  * @return a parser producing the wrapped parser's value
  */
 export function peek<P>(parser: Parser<P>): Parser<P> {
-  return fromGenerator(function* () {
+  return fromGenerator(function* peek() {
     const startState = yield 0;
     let result: P;
     try {
@@ -199,7 +202,7 @@ export function peek<P>(parser: Parser<P>): Parser<P> {
     }
     yield startState;
     return result;
-  });
+  }, `peek(${parser.parserName})`);
 }
 
 /**
@@ -211,7 +214,7 @@ export function peek<P>(parser: Parser<P>): Parser<P> {
  * @return A parser producing the string input consumed until the terminator parser.
  */
 export function until<T>(terminator: Parser<T>): Parser<string> {
-  return fromGenerator(function* () {
+  return fromGenerator(function* until() {
     let state = yield 0;
     for (var i = state.offset; i <= state.input.length; ++i) {
       // why i <= len? end terminators only match if offset = len.
@@ -225,8 +228,8 @@ export function until<T>(terminator: Parser<T>): Parser<string> {
         // ignore and proceed
       }
     }
-    throw resultFailure("Didn't find terminator", state, ParseErrorDetail);
-  });
+    throw resultFailure("Didn't find terminator", state);
+  }, `until(${terminator.parserName})`);
 }
 
 /**
@@ -236,12 +239,12 @@ export function until<T>(terminator: Parser<T>): Parser<string> {
  * @param end A parser consuming an end token
  */
 export function between<T>(start: Parser<T>, end: Parser<T>): Parser<string> {
-  return fromGenerator(function* () {
+  return fromGenerator(function* between() {
     yield* start;
     var data = yield* until(end);
     yield* end;
     return data;
-  });
+  }, `between(${start.parserName},${end.parserName})`);
 }
 
 /**
@@ -251,10 +254,10 @@ export function between<T>(start: Parser<T>, end: Parser<T>): Parser<string> {
  * @param fn function to transform the value produced by the parsed
  */
 export function map<V, W>(parser: Parser<V>, fn: (val: V) => W): Parser<W> {
-  return fromGenerator(function* () {
+  return fromGenerator(function* map() {
     var result = yield* parser;
     return fn(result);
-  });
+  }, `map(${parser.parserName})`);
 }
 
 /**
@@ -269,12 +272,12 @@ export function surround<L, T, R>(
   val: Parser<T>,
   right: Parser<R>
 ): Parser<T> {
-  return fromGenerator<L | T | R, T>(function* () {
+  return fromGenerator(function* surround() {
     yield* left;
     var v: T = yield* val;
     yield* right;
     return v;
-  });
+  }, `surround(${left.parserName},${val.parserName},${right.parserName})`);
 }
 
 export type OperatorActionUnary<T> = (val: T) => T;
@@ -358,41 +361,39 @@ export function buildExpressionParser<T>(
     }
   }
 
-  var parseExprTerm = fromGenerator<OperatorActionUnary<T> | null | T, T>(
-    function* () {
-      var preFuncs: OperatorActionUnary<T>[] = [];
-      var postFuncs: OperatorActionUnary<T>[] = [];
-      var f: OperatorActionUnary<T> | null = null;
-      do {
-        f = yield* maybe(choice(preOps));
-        if (f !== null) {
-          preFuncs.push(f);
-        }
-      } while (f !== null);
-      if (parseTerm === null) {
-        parseTerm = parseTermFactory();
+  var parseExprTerm = fromGenerator(function* exprParserTerm() {
+    var preFuncs: OperatorActionUnary<T>[] = [];
+    var postFuncs: OperatorActionUnary<T>[] = [];
+    var f: OperatorActionUnary<T> | null = null;
+    do {
+      f = yield* maybe(choice(preOps));
+      if (f !== null) {
+        preFuncs.push(f);
       }
-      var result: T = yield* parseTerm;
-      do {
-        f = yield* maybe(choice(postOps));
-        if (f !== null) {
-          postFuncs.push(f);
-        }
-      } while (f !== null);
-      for (let f of preFuncs) {
-        result = f(result);
-      }
-      for (let f of postFuncs) {
-        result = f(result);
-      }
-      return result;
+    } while (f !== null);
+    if (parseTerm === null) {
+      parseTerm = parseTermFactory();
     }
-  );
+    var result: T = yield* parseTerm;
+    do {
+      f = yield* maybe(choice(postOps));
+      if (f !== null) {
+        postFuncs.push(f);
+      }
+    } while (f !== null);
+    for (let f of preFuncs) {
+      result = f(result);
+    }
+    for (let f of postFuncs) {
+      result = f(result);
+    }
+    return result;
+  }, `expressionParser:term`);
 
   // This uses the precedence climbing/TDOP algorithm
   // See http://eli.thegreenplace.net/2012/08/02/parsing-expressions-by-precedence-climbing
   function parseExpressionPrecedence(minPrec: number): Parser<T> {
-    return fromGenerator<T | OperatorActionBinary<T> | null, T>(function* () {
+    return fromGenerator(function* exprParserPrecedence() {
       var left: T = yield* parseExprTerm;
       while (true) {
         var action: OperatorActionBinary<T> | null = null;
@@ -419,7 +420,7 @@ export function buildExpressionParser<T>(
         var right = yield* parseExpressionPrecedence(nextMinPrec);
         left = action(left, right);
       }
-    });
+    }, `expressionParser:precedence`);
   }
   return parseExpressionPrecedence(0);
 }
