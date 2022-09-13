@@ -1,14 +1,16 @@
-import { ParseError } from "./ParserTypes";
-import { resultFailure } from "./ParserHelpers";
-import { fromGenerator } from "./Parser";
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const ParserTypes_1 = require("./ParserTypes");
+const ParserHelpers_1 = require("./ParserHelpers");
+const Parser_1 = require("./Parser");
 /**
  * Produce the parser's produced value or null on failure.
  *
  * @param parser the parser to attempt
  * @return a parser producing the wrapped parser's result or null on failure
  */
-export function maybe(parser) {
-    return fromGenerator(function* maybe() {
+function maybe(parser) {
+    return Parser_1.fromGenerator(function* maybe() {
         const startState = yield 0;
         try {
             return yield* parser;
@@ -19,14 +21,15 @@ export function maybe(parser) {
         }
     }, `maybe(${parser.parserName})`);
 }
+exports.maybe = maybe;
 /**
  * Produce an array of items from applying a parser any number of times (including zero).
  *
  * @param parser a parser to match multiple times
  * @return a parser producing an array of parsed values
  */
-export function many(parser) {
-    return fromGenerator(function* many() {
+function many(parser) {
+    return Parser_1.fromGenerator(function* many() {
         var results = [];
         while (true) {
             const state = yield 0;
@@ -41,27 +44,29 @@ export function many(parser) {
         }
     }, `many(${parser.parserName})`);
 }
+exports.many = many;
 /**
  * Produce an array of items from applying a parser at least once.
  *
  * @param parser the parser to execute multiple times
  * @return a parser producing an array of parsed values
  */
-export function many1(parser) {
-    return fromGenerator(function* many1() {
+function many1(parser) {
+    return Parser_1.fromGenerator(function* many1() {
         var one = yield* parser;
         var multiple = yield* many(parser);
         return [one].concat(multiple);
     }, `many1(${parser.parserName})`);
 }
+exports.many1 = many1;
 /**
  * Produce the first successful result of matching the provided parsers.
  *
  * @param parsers an array of parsers to try
  * @return a parser producing the first succeeding parser's value
  */
-export function choice(parsers) {
-    return fromGenerator(function* choice() {
+function choice(parsers) {
+    return Parser_1.fromGenerator(function* choice() {
         var errors = [];
         const startState = yield 0;
         for (var i = 0; i < parsers.length; ++i) {
@@ -69,7 +74,7 @@ export function choice(parsers) {
                 return yield* parsers[i];
             }
             catch (e) {
-                if (e instanceof ParseError) {
+                if (e instanceof ParserTypes_1.ParseError) {
                     errors.push(e);
                 }
                 else {
@@ -81,20 +86,21 @@ export function choice(parsers) {
         const state = yield 0;
         yield startState;
         errors.sort((a, b) => b.offset - a.offset);
-        throw resultFailure("Multiple choices; potential matches:\n- " +
+        throw ParserHelpers_1.resultFailure("Multiple choices; potential matches:\n- " +
             errors
                 .map((error) => error.message.split("\n").join("\n  "))
                 .join("\n- "), state);
     }, `choice(${parsers.map((parser) => parser.parserName).join(",")})`);
 }
+exports.choice = choice;
 /**
  * Produce a parser which runs the parsers in sequence, returning an array of results.
  *
  * @param parsers the parsers to execute in sequence
  * @return a parser producing an array of parsed values
  */
-export function sequence(parsers) {
-    return fromGenerator(function* sequence() {
+function sequence(parsers) {
+    return Parser_1.fromGenerator(function* sequence() {
         var results = [];
         for (var i = 0; i < parsers.length; ++i) {
             const state = yield 0;
@@ -103,6 +109,7 @@ export function sequence(parsers) {
         return results;
     }, `sequence(${parsers.map((parser) => parser.name).join(",")})`);
 }
+exports.sequence = sequence;
 /**
  * Produce an array of values from a parser run a specific number of times.
  *
@@ -110,8 +117,8 @@ export function sequence(parsers) {
  * @param parser the parser to repeat
  * @return a parser producing an array of parsed values
  */
-export function count(num, parser) {
-    return fromGenerator(function* count() {
+function count(num, parser) {
+    return Parser_1.fromGenerator(function* count() {
         var results = [];
         for (var i = 0; i < num; ++i) {
             results.push(yield* parser);
@@ -119,6 +126,7 @@ export function count(num, parser) {
         return results;
     }, `count(${num},${parser.parserName})`);
 }
+exports.count = count;
 /**
  * Produce an array of values obtained from a value parser which are each separated by a separator parser.
  *
@@ -128,9 +136,9 @@ export function count(num, parser) {
  * @param valParser a parser producing values desired
  * @return a parser producing valParser values and consuming valParser/sepParser/valParser/...etc input
  */
-export function sepBy1(sepParser, valParser) {
+function sepBy1(sepParser, valParser) {
     var maybeSeparator = maybe(sepParser);
-    return fromGenerator(function* sepBy1() {
+    return Parser_1.fromGenerator(function* sepBy1() {
         var results = [];
         while (true) {
             results.push(yield* valParser);
@@ -141,6 +149,7 @@ export function sepBy1(sepParser, valParser) {
         }
     }, `sepBy1(${sepParser.parserName},${valParser.parserName})`);
 }
+exports.sepBy1 = sepBy1;
 /**
  * Produce an array of values obtained from a value parser which are each separated by a separator parser.
  *
@@ -150,10 +159,10 @@ export function sepBy1(sepParser, valParser) {
  * @param valParser a parser producing values desired
  * @return a parser producing valParser values and consuming valParser/sepParser/valParser/...etc input
  */
-export function sepBy(sepParser, valParser) {
+function sepBy(sepParser, valParser) {
     var maybeSeparator = maybe(sepParser);
     var maybeParser = maybe(valParser);
-    return fromGenerator(function* sepBy() {
+    return Parser_1.fromGenerator(function* sepBy() {
         var results = [];
         var first = yield* maybeParser;
         if (first === null) {
@@ -171,14 +180,15 @@ export function sepBy(sepParser, valParser) {
         }
     }, `sepBy(${sepParser.parserName},${valParser.parserName})`);
 }
+exports.sepBy = sepBy;
 /**
  * Produce a value by running the parser, but not advancing the parsed state.
  *
  * @param parser a parser producing any value
  * @return a parser producing the wrapped parser's value
  */
-export function peek(parser) {
-    return fromGenerator(function* peek() {
+function peek(parser) {
+    return Parser_1.fromGenerator(function* peek() {
         const startState = yield 0;
         let result;
         try {
@@ -192,6 +202,7 @@ export function peek(parser) {
         return result;
     }, `peek(${parser.parserName})`);
 }
+exports.peek = peek;
 /**
  * Produce the string input consumed until the terminator parser matches.
  *
@@ -200,8 +211,8 @@ export function peek(parser) {
  * @param terminator A parser that consumes an end token
  * @return A parser producing the string input consumed until the terminator parser.
  */
-export function until(terminator) {
-    return fromGenerator(function* until() {
+function until(terminator) {
+    return Parser_1.fromGenerator(function* until() {
         let state = yield 0;
         for (var i = state.offset; i <= state.input.length; ++i) {
             // why i <= len? end terminators only match if offset = len.
@@ -216,35 +227,38 @@ export function until(terminator) {
                 // ignore and proceed
             }
         }
-        throw resultFailure("Didn't find terminator", state);
+        throw ParserHelpers_1.resultFailure("Didn't find terminator", state);
     }, `until(${terminator.parserName})`);
 }
+exports.until = until;
 /**
  * Produce the string input between the start and end parsers.
  *
  * @param start A parser consuming a start token
  * @param end A parser consuming an end token
  */
-export function between(start, end) {
-    return fromGenerator(function* between() {
+function between(start, end) {
+    return Parser_1.fromGenerator(function* between() {
         yield* start;
         var data = yield* until(end);
         yield* end;
         return data;
     }, `between(${start.parserName},${end.parserName})`);
 }
+exports.between = between;
 /**
  * Produce a value transformed by a provided function.
  *
  * @param parser the parser to wrap
  * @param fn function to transform the value produced by the parsed
  */
-export function map(parser, fn) {
-    return fromGenerator(function* map() {
+function map(parser, fn) {
+    return Parser_1.fromGenerator(function* map() {
         var result = yield* parser;
         return fn(result);
     }, `map(${parser.parserName})`);
 }
+exports.map = map;
 /**
  * Produce a value obtained after a prefix parser and before a suffix parser
  *
@@ -252,14 +266,15 @@ export function map(parser, fn) {
  * @param val the parser whose produced value is desired
  * @param right a suffix parser that the produced value is ignored
  */
-export function surround(left, val, right) {
-    return fromGenerator(function* surround() {
+function surround(left, val, right) {
+    return Parser_1.fromGenerator(function* surround() {
         yield* left;
         var v = yield* val;
         yield* right;
         return v;
     }, `surround(${left.parserName},${val.parserName},${right.parserName})`);
 }
+exports.surround = surround;
 /**
  * Build a parser which parses and produces arbitrary binary and unary expressions.
  *
@@ -293,7 +308,7 @@ export function surround(left, val, right) {
  * @param operators A an array of `OperatorDecl` objects, in precedence order from highest precedence to lowest precedence
  * @param parseTermFactory A factory method that returns a parser which produces the individual terms of an expression; this itself may reference the returned parser, so it can be used to implement parenthetical sub-expressions
  */
-export function buildExpressionParser(operators, parseTermFactory) {
+function buildExpressionParser(operators, parseTermFactory) {
     var parseTerm = null;
     var preOps = [];
     var postOps = [];
@@ -317,7 +332,7 @@ export function buildExpressionParser(operators, parseTermFactory) {
                 break;
         }
     }
-    var parseExprTerm = fromGenerator(function* exprParserTerm() {
+    var parseExprTerm = Parser_1.fromGenerator(function* exprParserTerm() {
         var preFuncs = [];
         var postFuncs = [];
         var f = null;
@@ -348,7 +363,7 @@ export function buildExpressionParser(operators, parseTermFactory) {
     // This uses the precedence climbing/TDOP algorithm
     // See http://eli.thegreenplace.net/2012/08/02/parsing-expressions-by-precedence-climbing
     function parseExpressionPrecedence(minPrec) {
-        return fromGenerator(function* exprParserPrecedence() {
+        return Parser_1.fromGenerator(function* exprParserPrecedence() {
             var left = yield* parseExprTerm;
             while (true) {
                 var action = null;
@@ -380,4 +395,5 @@ export function buildExpressionParser(operators, parseTermFactory) {
     }
     return parseExpressionPrecedence(0);
 }
+exports.buildExpressionParser = buildExpressionParser;
 //# sourceMappingURL=ParserCombinators.js.map

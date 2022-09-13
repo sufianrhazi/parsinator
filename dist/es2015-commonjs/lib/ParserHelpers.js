@@ -1,5 +1,7 @@
-import { ParseError } from "./ParserTypes";
-export function resultSuccess(value, input, offset) {
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const ParserTypes_1 = require("./ParserTypes");
+function resultSuccess(value, input, offset) {
     return {
         value: value,
         state: {
@@ -8,7 +10,8 @@ export function resultSuccess(value, input, offset) {
         },
     };
 }
-export function resultFailure(msg, state) {
+exports.resultSuccess = resultSuccess;
+function resultFailure(msg, state) {
     var lines = 0;
     var lastLineStart = 0;
     for (var i = 0; i < state.offset; ++i) {
@@ -19,6 +22,7 @@ export function resultFailure(msg, state) {
     }
     var line = 1 + lines;
     var col = 1 + state.offset - lastLineStart;
-    return new ParseError(msg, line, col, state);
+    return new ParserTypes_1.ParseError(msg, line, col, state);
 }
+exports.resultFailure = resultFailure;
 //# sourceMappingURL=ParserHelpers.js.map

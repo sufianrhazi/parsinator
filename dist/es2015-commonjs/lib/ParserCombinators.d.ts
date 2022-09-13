@@ -1,4 +1,4 @@
-import { Parser } from './ParserTypes';
+import { Parser } from "./ParserTypes";
 /**
  * Produce the parser's produced value or null on failure.
  *
@@ -14,7 +14,7 @@ export declare function maybe<P>(parser: Parser<P>): Parser<P | null>;
  */
 export declare function many<P>(parser: Parser<P>): Parser<P[]>;
 /**
- * Produce an array of items from applying a parserat least once.
+ * Produce an array of items from applying a parser at least once.
  *
  * @param parser the parser to execute multiple times
  * @return a parser producing an array of parsed values
@@ -28,7 +28,7 @@ export declare function many1<P>(parser: Parser<P>): Parser<P[]>;
  */
 export declare function choice<V>(parsers: Parser<V>[]): Parser<V>;
 /**
- * Produce a parser whichruns the parsers in sequence, returning an array of results.
+ * Produce a parser which runs the parsers in sequence, returning an array of results.
  *
  * @param parsers the parsers to execute in sequence
  * @return a parser producing an array of parsed values

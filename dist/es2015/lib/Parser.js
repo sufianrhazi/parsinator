@@ -1,4 +1,11 @@
-import { resultFailure, resultSuccess, ParseErrorDetail, formatState } from './ParserHelpers';
+import { ParseError, formatState, } from "./ParserTypes";
+import { resultFailure } from "./ParserHelpers";
+export function makeParser(generator, parserName) {
+    return Object.assign(() => generator(), {
+        [Symbol.iterator]: generator,
+        parserName,
+    });
+}
 /**
  * Produce the full string match from a regular expression.
  *
@@ -6,15 +13,17 @@ import { resultFailure, resultSuccess, ParseErrorDetail, formatState } from './P
  * @return A parser producing the string matched by the regular expression
  */
 export function regex(regex) {
-    return (state) => {
+    return makeParser(function* () {
+        const state = yield 0;
         var remaining = state.input.slice(state.offset);
         var duplicated = new RegExp(regex);
         var result = duplicated.exec(remaining);
         if (result === null || result.index !== 0) {
-            throw resultFailure(`regex /${regex.source}/${regex.flags} doesn't match`, state, ParseErrorDetail);
+            throw resultFailure(`regex /${regex.source}/${regex.flags} doesn't match`, state);
         }
-        return resultSuccess(result[0], state.input, state.offset + result[0].length);
-    };
+        yield result[0].length;
+        return result[0];
+    }, `regex:${regex.source}`);
 }
 /**
  * Produce the full match and all groups from a regular expression.
@@ -25,15 +34,17 @@ export function regex(regex) {
  * @return A parser producing an array of matching groups; item 0 is the full matching string
  */
 export function regexMatch(regex) {
-    return (state) => {
+    return makeParser(function* () {
+        const state = yield 0;
         var remaining = state.input.slice(state.offset);
         var duplicated = new RegExp(regex);
         var result = duplicated.exec(remaining);
         if (result === null || result.index !== 0) {
-            throw resultFailure(`regex /${regex.source}/${regex.flags} doesn't match`, state, ParseErrorDetail);
+            throw resultFailure(`regex /${regex.source}/${regex.flags} doesn't match`, state);
         }
-        return resultSuccess(Array.from(result), state.input, state.offset + result[0].length);
-    };
+        yield result[0].length;
+        return Array.from(result);
+    }, `regexMatch:${regex.source}`);
 }
 /**
  * Produce a string value.
@@ -42,14 +53,16 @@ export function regexMatch(regex) {
  * @return A parser producing the matched string
  */
 export function str(string) {
-    return (state) => {
+    return makeParser(function* () {
+        const state = yield 0;
         if (state.input.substr(state.offset, string.length) === string) {
-            return resultSuccess(string, state.input, state.offset + string.length);
+            yield string.length;
+            return string;
         }
         else {
-            throw resultFailure(`"${string}" not found`, state, ParseErrorDetail);
+            throw resultFailure(`"${string}" not found`, state);
         }
-    };
+    }, `str:${string}`);
 }
 /**
  * Produce the return value of the generator, which may yield to sub-parsers.
@@ -59,23 +72,27 @@ export function str(string) {
  * @param generator A generator function which yields Parsers and returns value
  * @return A parser producing the returned value
  */
-export function fromGenerator(generator) {
-    return (state) => {
-        var lastValue = undefined;
+export function fromGenerator(generator, parserName) {
+    return makeParser(function* () {
+        let state = yield 0;
         var iterator = generator();
         while (true) {
-            var result = iterator.next(lastValue);
+            var result = iterator.next(state);
             if (result.done) {
-                return resultSuccess(result.value, state.input, state.offset);
+                yield state;
+                return result.value;
             }
             else {
-                var producedParser = result.value;
-                var stepResult = producedParser(state);
-                lastValue = stepResult.value;
-                state = stepResult.state;
+                if (typeof result.value === "number") {
+                    state = Object.assign(Object.assign({}, state), { offset: state.offset + result.value });
+                }
+                else {
+                    state = result.value;
+                }
+                yield state;
             }
         }
-    };
+    }, parserName || generator.name);
 }
 /**
  * Return a parser which always fails with a specific error message.
@@ -83,9 +100,10 @@ export function fromGenerator(generator) {
  * @param message the message to fail with
  */
 export function fail(message) {
-    return (state) => {
-        throw resultFailure(message, state, ParseErrorDetail);
-    };
+    return makeParser(function* () {
+        const state = yield 0;
+        throw resultFailure(message, state);
+    }, `fail:${message}`);
 }
 /**
  * Return a parser which when the wrapped parser fails, provides an alternate error message.
@@ -94,16 +112,18 @@ export function fail(message) {
  * @param wrapper a function to add more information to an error message
  */
 export function wrapFail(parser, wrapper) {
-    return (state) => {
+    return makeParser(function* () {
         try {
-            return parser(state);
+            return yield* parser;
         }
         catch (e) {
-            var index = e.message.indexOf(': ') + 2;
-            e.message = e.message.slice(0, index) + wrapper(e.message.slice(index));
+            if (e instanceof ParseError) {
+                const message = wrapper(e.msg);
+                throw resultFailure(message, { input: e.input, offset: e.offset });
+            }
             throw e;
         }
-    };
+    }, "wrapFail");
 }
 /**
  * Produce nothing and consume nothing, just log the parser state to a log
@@ -111,22 +131,41 @@ export function wrapFail(parser, wrapper) {
  * @param log A logging function
  */
 export function debugTrace(log) {
-    return (state) => {
+    return makeParser(function* () {
+        const state = yield 0;
         log(formatState(state));
-        return resultSuccess(undefined, state.input, state.offset);
-    };
+        return undefined;
+    }, "debugTrace");
 }
 /**
  * @var end A parser which produces null at the end of input and fails if there is more input.
  */
-export const end = (state) => {
+export const end = makeParser(function* () {
+    const state = yield 0;
     if (state.offset >= state.input.length) {
-        return resultSuccess(null, state.input, state.offset);
+        return null;
     }
     else {
-        throw resultFailure("Not at end of string", state, ParseErrorDetail);
+        throw resultFailure("Not at end of string", state);
     }
-};
+}, "end");
+function runInner(parser, state) {
+    const iter = parser();
+    let step = iter.next(state);
+    while (!step.done) {
+        if (typeof step.value === "number") {
+            state = Object.assign(Object.assign({}, state), { offset: state.offset + step.value });
+        }
+        else {
+            state = step.value;
+        }
+        step = iter.next(state);
+    }
+    return {
+        value: step.value,
+        state: state,
+    };
+}
 /**
  * Run a parser on an input, returning the parser's produced value.
  *
@@ -137,12 +176,11 @@ export const end = (state) => {
  * @return The value produced by the parser
  */
 export function run(parser, input) {
-    var state = {
+    const state = {
         input: input,
         offset: 0,
     };
-    var result = parser(state);
-    return result.value;
+    return runInner(parser, state).value;
 }
 /**
  * Run a parser on the full input, returning the parser's produced value.
@@ -154,10 +192,12 @@ export function run(parser, input) {
  * @return The value produced by the parser
  */
 export function runToEnd(parser, input) {
-    return run((state) => {
-        var result = parser(state);
-        end(result.state); // throws on error
-        return result;
-    }, input);
+    const state = {
+        input: input,
+        offset: 0,
+    };
+    const result = runInner(parser, state);
+    const next = runInner(end, result.state); // throws on error
+    return result.value;
 }
 //# sourceMappingURL=Parser.js.map

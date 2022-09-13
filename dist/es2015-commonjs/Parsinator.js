@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.VERSION = '1.0.0';
+exports.VERSION = "2.0.0";
 var Parser_1 = require("./lib/Parser");
 exports.str = Parser_1.str;
 exports.regex = Parser_1.regex;

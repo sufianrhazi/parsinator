@@ -6,11 +6,18 @@ export interface ParseResult<T> {
     value: T;
     state: ParseState;
 }
-export declare type Parser<T> = (state: ParseState) => ParseResult<T>;
+export interface Parser<T> {
+    (): Generator<number | ParseState, T, ParseState>;
+    [Symbol.iterator](): Generator<number | ParseState, T, ParseState>;
+    parserName: string;
+}
 export declare class ParseError extends Error {
     line: number;
     col: number;
     offset: number;
     input: string;
+    msg: string;
+    state: ParseState;
     constructor(msg: string, line: number, col: number, state: ParseState);
 }
+export declare function formatState(state: ParseState): string;
