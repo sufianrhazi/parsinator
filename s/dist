@@ -14,45 +14,13 @@ node_modules/.bin/tsc \
     --declaration \
     src/Parsinator.ts
 
-echo "module: TypeScript -> ES5 commonjs"
+echo "module: TypeScript -> ES2015 commonjs"
 node_modules/.bin/tsc \
-    --outDir dist/es5-commonjs \
-    --target ES5 \
+    --outDir dist/es2015-commonjs \
+    --target ES2015 \
     --module commonjs \
     --lib es2015 \
     --sourceMap \
     --strict \
     --declaration \
     src/Parsinator.ts
-
-echo "lib: TypeScript -> ES5 amd"
-node_modules/.bin/tsc \
-    --outFile dist/es5-bundle/parsinator-amd.js \
-    --target ES5 \
-    --module amd \
-    --lib es2015 \
-    --sourceMap \
-    --strict \
-    --declaration \
-    src/Parsinator.ts
-
-echo "lib: TypeScript -> ES5 system"
-node_modules/.bin/tsc \
-    --outFile dist/es5-bundle/parsinator-system.js \
-    --target ES5 \
-    --module system \
-    --lib es2015 \
-    --sourceMap \
-    --strict \
-    src/Parsinator.ts
-
-echo "lib: ES5 amd -> ES5 browser"
-s/amdclean dist/es5-bundle/parsinator-amd.js dist/es5-bundle/parsinator-standalone.js
-
-echo "lib: ES5 browser -> ES5 browser (min)"
-closure-compiler \
-    --env BROWSER \
-    --js dist/es5-bundle/parsinator-standalone.js \
-    --language_in ECMASCRIPT5 \
-    --language_out ECMASCRIPT5 \
-    > dist/es5-bundle/parsinator-standalone.min.js
