@@ -211,6 +211,41 @@ suite("sequence", function () {
       assert.equal(11, e.offset);
     }
   });
+
+  test("miss pointer is aligned with col", function () {
+    assert.throws(
+      () =>
+        Parsinator.run(
+          Parsinator.sequence<string>([
+            Parsinator.str("\n"),
+            Parsinator.str("foo"),
+            Parsinator.str("bar"),
+            Parsinator.str("baz"),
+          ]),
+          "\nfoobar"
+        ),
+      `Parse failure at 2:7: "baz" not found
+-> «·foobar»
+           ^`
+    );
+    assert.throws(
+      () =>
+        Parsinator.run(
+          Parsinator.sequence<string>([
+            Parsinator.str("\n"),
+            Parsinator.str("foo"),
+            Parsinator.str("\n"),
+            Parsinator.str("bar"),
+            Parsinator.str("\n"),
+            Parsinator.str("baz"),
+          ]),
+          "\nfoo\nbar\nbar"
+        ),
+      `Parse failure at 4:1: "baz" not found
+-> «·foo·bar·bar»
+             ^`
+    );
+  });
 });
 
 suite("count", function () {
@@ -398,17 +433,14 @@ suite("surround", function () {
 suite(
   "buildExpressionParser can build a simple arithmetic parser",
   function () {
-    var whitespace = Parsinator.regex(new RegExp("\\s*"));
-    var token = (parser: Parsinator.Parser<any>): typeof parser =>
+    var whitespace = Parsinator.regex(/\s*/);
+    var token = <T>(parser: Parsinator.Parser<T>): Parsinator.Parser<T> =>
       Parsinator.surround(whitespace, parser, whitespace);
-    var operator = (
-      op: string,
-      opFunc: any
-    ): Parsinator.Parser<typeof opFunc> =>
-      Parsinator.map<string, typeof opFunc>(
-        token(Parsinator.str(op)),
-        () => opFunc
-      );
+    var operator = <T>(op: string, opFunc: T) =>
+      Parsinator.fromGenerator(function* () {
+        yield* token(Parsinator.str(op));
+        return opFunc;
+      });
 
     var number = Parsinator.map(Parsinator.regex(/[0-9]+/), (str) =>
       parseInt(str)

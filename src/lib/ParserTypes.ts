@@ -41,8 +41,7 @@ export function formatState(state: ParseState): string {
     (endOffset === state.input.length ? "" : "...");
   var charsBefore =
     (startOffset === 0 ? 0 : 3) +
-    state.input.slice(startOffset, state.offset).length -
-    1;
-  var marker = new Array(charsBefore + 1).join(" ") + "^";
+    state.input.slice(startOffset, state.offset).length;
+  var marker = " ".repeat(charsBefore) + "^";
   return `-> «${substr}»\n    ${marker} `;
 }
