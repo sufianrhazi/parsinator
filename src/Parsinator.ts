@@ -1,4 +1,7 @@
-export const VERSION = "2.0.0";
+declare const BUILD_VERSION: string | undefined;
+
+export const VERSION =
+  typeof BUILD_VERSION === undefined ? "debug" : BUILD_VERSION;
 
 export {
   str,
