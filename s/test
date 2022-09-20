@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
 set -e
 cd "$(dirname "$0")/.."
-s/tsc-build.sh
-find build/tsc/ -type f -name '*.test.js' -print0 | xargs -0 node node_modules/.bin/mocha --reporter=tap --bail --ui=tdd
+find src -type f -name '*.test.*' -print0 | xargs -0 node_modules/.bin/ts-mocha --reporter=tap --bail --ui=tdd

@@ -7,7 +7,7 @@ BUILD_VERSION=$(jq .version package.json)
 echo "Building version $BUILD_VERSION"
 
 echo "Typecheck"
-node_modules/.bin/tsc --outFile dist/Parsinator.d.ts -p .
+node_modules/.bin/tsc --emitDeclarationOnly --outFile dist/Parsinator.d.ts -p .
 
 echo "module: TypeScript -> ES2015 module"
 node_modules/.bin/esbuild \

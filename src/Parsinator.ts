@@ -1,7 +1,7 @@
 declare const BUILD_VERSION: string | undefined;
 
 export const VERSION =
-  typeof BUILD_VERSION === undefined ? "debug" : BUILD_VERSION;
+  typeof BUILD_VERSION === "undefined" ? "debug" : BUILD_VERSION;
 
 export {
   str,

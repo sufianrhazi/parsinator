@@ -22,12 +22,13 @@
   "author": "Sufian Rhazi <sufian@gmail.com> (https://abstract.properties)",
   "license": "MIT",
   "devDependencies": {
-    "@types/chai": "^3.5.2",
-    "@types/mocha": "^2.2.41",
-    "chai": "3.5.0",
-    "esbuild": "^0.15.8",
-    "mocha": "3.4.1",
-    "prettier": "^2.7.1",
+    "@types/chai": "3.5.2",
+    "@types/mocha": "2.2.41",
+    "chai": "4.3.6",
+    "esbuild": "0.15.8",
+    "mocha": "10.0.0",
+    "prettier": "2.7.1",
+    "ts-mocha": "^10.0.0",
     "typescript": "3.6.5"
   }
 }
