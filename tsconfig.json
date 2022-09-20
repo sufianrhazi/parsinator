@@ -6,7 +6,7 @@
     "declaration": true,
     "sourceMap": true,
     "removeComments": false,
-    "outDir": "./build/tsc",
-    "strict": true
+    "strict": true,
+    "emitDeclarationOnly": true
   }
 }

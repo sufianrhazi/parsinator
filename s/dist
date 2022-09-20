@@ -3,24 +3,55 @@ set -e
 cd "$(dirname "$0")/.."
 s/clean
 
+BUILD_VERSION=$(jq .version package.json)
+echo "Building version $BUILD_VERSION"
+
+echo "Typecheck"
+node_modules/.bin/tsc --outFile dist/Parsinator.d.ts -p .
+
 echo "module: TypeScript -> ES2015 module"
-node_modules/.bin/tsc \
-    --outDir dist/es2015 \
-    --target ES2015 \
-    --module es2015 \
-    --lib es2015 \
-    --sourceMap \
-    --strict \
-    --declaration \
+node_modules/.bin/esbuild \
+    --bundle \
+    --define:"BUILD_VERSION=$BUILD_VERSION" \
+    --outdir=dist/es2015 \
+    --sourcemap \
+    --target=es2015 \
+    --format=esm \
+    --platform=neutral \
     src/Parsinator.ts
 
-echo "module: TypeScript -> ES2015 commonjs"
-node_modules/.bin/tsc \
-    --outDir dist/es2015-commonjs \
-    --target ES2015 \
-    --module commonjs \
-    --lib es2015 \
-    --sourceMap \
-    --strict \
-    --declaration \
+echo "module: TypeScript -> ES2015 commonjs node"
+node_modules/.bin/esbuild \
+    --bundle \
+    --define:"BUILD_VERSION=$BUILD_VERSION" \
+    --outdir=dist/es2015-commonjs \
+    --sourcemap \
+    --target=es2015 \
+    --format=cjs \
+    --platform=node \
+    src/Parsinator.ts
+
+echo "module: TypeScript -> iife bundle"
+node_modules/.bin/esbuild \
+    --bundle \
+    --define:"BUILD_VERSION=$BUILD_VERSION" \
+    --outfile=dist/Parsinator.js \
+    --sourcemap \
+    --target=es2015 \
+    --format=iife \
+    --platform=browser \
+    --global-name=Parsinator \
+    src/Parsinator.ts
+
+echo "module: TypeScript -> minified iife bundle"
+node_modules/.bin/esbuild \
+    --bundle \
+    --define:"BUILD_VERSION=$BUILD_VERSION" \
+    --minify \
+    --outfile=dist/Parsinator.min.js \
+    --sourcemap \
+    --target=es2015 \
+    --format=iife \
+    --platform=browser \
+    --global-name=Parsinator \
     src/Parsinator.ts

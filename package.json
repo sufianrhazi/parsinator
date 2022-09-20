@@ -13,8 +13,9 @@
     "type": "git",
     "url": "https://github.com/sufianrhazi/parsinator.git"
   },
-  "main": "dist/es2015-commonjs/Parsinator.js",
-  "types": "dist/es2015-commonjs/Parsinator.d.ts",
+  "type": "module",
+  "main": "dist/es2015/Parsinator.js",
+  "types": "dist/Parsinator.d.ts",
   "scripts": {
     "test": "s/test"
   },
@@ -24,8 +25,9 @@
     "@types/chai": "^3.5.2",
     "@types/mocha": "^2.2.41",
     "chai": "3.5.0",
+    "esbuild": "^0.15.8",
     "mocha": "3.4.1",
-    "typescript": "3.6.5",
-    "prettier": "^2.7.1"
+    "prettier": "^2.7.1",
+    "typescript": "3.6.5"
   }
 }
