@@ -440,7 +440,7 @@ function buildExpressionParser(operators, parseTermFactory) {
 }
 
 // src/Parsinator.ts
-var VERSION = "string" === void 0 ? "debug" : "2.1.0";
+var VERSION = false ? "debug" : "2.1.1";
 export {
   ParseError,
   VERSION,
