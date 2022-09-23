@@ -14,8 +14,8 @@
     "url": "https://github.com/sufianrhazi/parsinator.git"
   },
   "type": "module",
-  "main": "dist/es2015/Parsinator.js",
-  "types": "dist/Parsinator.d.ts",
+  "main": "dist/es2015/parsinator.js",
+  "types": "dist/parsinator.d.ts",
   "scripts": {
     "test": "s/test"
   },
